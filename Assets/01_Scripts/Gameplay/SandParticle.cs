@@ -3,7 +3,7 @@ using UnityEngine;
 using Random = UnityEngine.Random;
 
 [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
-public sealed class SandParticle : MonoBehaviour
+public sealed class SandParticle : MonoBehaviour, IPoolable
 {
     [Header("입자 외형")]
     [SerializeField] private Vector2 _scaleRange = new Vector2(0.72f, 1f);
@@ -57,11 +57,23 @@ public sealed class SandParticle : MonoBehaviour
             _sprite.sortingOrder = Random.Range(0, 4);
         }
 
+        OnSpawned();
+        _body.velocity = velocity;
+        _body.angularVelocity = Random.Range(-180f, 180f);
+    }
+
+    public void OnSpawned()
+    {
         gameObject.SetActive(true);
         _collider.enabled = true;
         _body.simulated = true;
-        _body.velocity = velocity;
-        _body.angularVelocity = Random.Range(-180f, 180f);
+    }
+
+    public void OnDespawned()
+    {
+        _collider.enabled = false;
+        _body.simulated = false;
+        gameObject.SetActive(false);
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
@@ -85,9 +97,7 @@ public sealed class SandParticle : MonoBehaviour
         }
 
         pileController.AddSandBurst(impactPoint, color, Random.Range(4, 7));
-        _collider.enabled = false;
-        _body.simulated = false;
-        gameObject.SetActive(false);
+        OnDespawned();
         _recycle?.Invoke(this);
     }
 }

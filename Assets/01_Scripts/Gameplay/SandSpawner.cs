@@ -52,7 +52,7 @@ public sealed class SandSpawner : MonoBehaviour
         for (int i = 0; i < count; i++)
         {
             SandParticle particle = Instantiate(_particlePrefab, transform);
-            particle.gameObject.SetActive(false);
+            particle.OnDespawned();
             _availableParticles.Enqueue(particle);
         }
     }
