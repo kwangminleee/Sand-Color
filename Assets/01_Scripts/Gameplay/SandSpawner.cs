@@ -1,8 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public sealed class SandSpawner : MonoBehaviour
 {
+    [Header("Touch Area")]
+    [SerializeField] private RectTransform _touchArea;
+
     [Header("모래 입자")]
     [SerializeField] private SandParticle _particlePrefab;
     [SerializeField] private Color _sandColor = new Color(1f, 0.72f, 0.18f, 1f);
@@ -11,25 +15,65 @@ public sealed class SandSpawner : MonoBehaviour
     [Header("스폰 설정")]
     [SerializeField, Min(1f)] private float _particlesPerSecond = 180f;
     [SerializeField, Min(0f)] private float _streamWidth = 0.12f;
+    [SerializeField, Min(0f)] private float _spawnEdgePadding = 0.08f;
     [SerializeField] private Vector2 _horizontalSpeedRange = new Vector2(-0.25f, 0.25f);
     [SerializeField] private Vector2 _downwardSpeedRange = new Vector2(0.35f, 0.8f);
     [SerializeField, Range(1, 8)] private int _sandStepsPerFrame = 4;
+    [SerializeField, Min(2f)] private float _uiParticleSize = 18f;
+
+    private sealed class ParticleView
+    {
+        public SandParticle Particle;
+        public RectTransform Rect;
+        public Image Image;
+    }
 
     private readonly Queue<SandParticle> _availableParticles =
         new Queue<SandParticle>();
+    private readonly List<ParticleView> _particleViews =
+        new List<ParticleView>();
     private Camera _camera;
+    private Camera _uiCamera;
     private float _emissionAccumulator;
+    private bool _initialized;
+    private Rect _spawnWorldBounds;
+    private bool _hasSpawnWorldBounds;
 
     private void Awake()
     {
-        SandPileController.Instance.SetSimulationStepsPerFrame(_sandStepsPerFrame);
         _camera = Camera.main;
+        if (_touchArea == null)
+        {
+            _touchArea = transform as RectTransform;
+        }
+
+        Canvas canvas = _touchArea != null
+            ? _touchArea.GetComponentInParent<Canvas>()
+            : null;
+        _uiCamera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? canvas.worldCamera
+            : null;
+    }
+
+    private void Start()
+    {
+        SandPileController pileController = SandPileController.Instance;
+        pileController.SetSimulationStepsPerFrame(_sandStepsPerFrame);
+
+        if (_touchArea != null && TryGetTouchAreaWorldBounds(out Rect worldBounds))
+        {
+            _spawnWorldBounds = worldBounds;
+            _hasSpawnWorldBounds = true;
+            pileController.ConfigureBounds(_touchArea, worldBounds);
+        }
+
         SandParticlePool();
+        _initialized = enabled;
     }
 
     private void Update()
     {
-        if (TryGetPointerWorldPosition(out Vector3 emissionPosition))
+        if (_initialized && TryGetPointerWorldPosition(out Vector3 emissionPosition))
         {
             EmitParticles(emissionPosition);
         }
@@ -37,6 +81,73 @@ public sealed class SandSpawner : MonoBehaviour
         {
             _emissionAccumulator = 0f;
         }
+    }
+
+    private void LateUpdate()
+    {
+        if (_touchArea == null || _camera == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < _particleViews.Count; i++)
+        {
+            ParticleView view = _particleViews[i];
+            bool visible = view.Particle != null && view.Particle.IsSpawned;
+            view.Image.enabled = visible;
+            if (!visible)
+            {
+                continue;
+            }
+
+            Vector2 screenPoint = _camera.WorldToScreenPoint(view.Particle.transform.position);
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    _touchArea,
+                    screenPoint,
+                    _uiCamera,
+                    out Vector2 localPoint))
+            {
+                view.Image.enabled = false;
+                continue;
+            }
+
+            view.Rect.anchoredPosition = localPoint;
+            Vector2 visualScale = view.Particle.VisualScale;
+            view.Rect.localScale = new Vector3(visualScale.x, visualScale.y, 1f);
+            view.Image.color = view.Particle.RenderColor;
+        }
+    }
+
+    private bool TryGetTouchAreaWorldBounds(out Rect worldBounds)
+    {
+        worldBounds = default;
+        if (_touchArea == null || _camera == null)
+        {
+            return false;
+        }
+
+        Vector3[] corners = new Vector3[4];
+        _touchArea.GetWorldCorners(corners);
+        Plane gameplayPlane = new Plane(Vector3.forward, transform.position);
+        Vector2 min = new Vector2(float.PositiveInfinity, float.PositiveInfinity);
+        Vector2 max = new Vector2(float.NegativeInfinity, float.NegativeInfinity);
+
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(_uiCamera, corners[i]);
+            Ray ray = _camera.ScreenPointToRay(screenPoint);
+            if (!gameplayPlane.Raycast(ray, out float distance))
+            {
+                return false;
+            }
+
+            Vector2 point = ray.GetPoint(distance);
+            min = Vector2.Min(min, point);
+            max = Vector2.Max(max, point);
+        }
+
+        worldBounds = Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+        return worldBounds.width > 0f && worldBounds.height > 0f;
     }
 
     private void SandParticlePool()
@@ -51,10 +162,48 @@ public sealed class SandSpawner : MonoBehaviour
         int count = Mathf.Max(16, _poolSize);
         for (int i = 0; i < count; i++)
         {
-            SandParticle particle = Instantiate(_particlePrefab, transform);
+            // TouchArea is a UI transform, so physics particles must stay in world space.
+            SandParticle particle = Instantiate(_particlePrefab);
             particle.OnDespawned();
             _availableParticles.Enqueue(particle);
+            CreateParticleView(particle);
         }
+    }
+
+    private void CreateParticleView(SandParticle particle)
+    {
+        if (_touchArea == null || particle == null)
+        {
+            return;
+        }
+
+        GameObject viewObject = new GameObject(
+            "Falling Sand",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(Image)
+        );
+        viewObject.layer = _touchArea.gameObject.layer;
+
+        RectTransform rect = (RectTransform)viewObject.transform;
+        rect.SetParent(_touchArea, false);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = Vector2.one * _uiParticleSize;
+        rect.SetAsLastSibling();
+
+        Image image = viewObject.GetComponent<Image>();
+        image.sprite = particle.ParticleSprite;
+        image.preserveAspect = true;
+        image.raycastTarget = false;
+        image.enabled = false;
+
+        _particleViews.Add(new ParticleView
+        {
+            Particle = particle,
+            Rect = rect,
+            Image = image
+        });
     }
 
     private bool TryGetPointerWorldPosition(out Vector3 worldPosition)
@@ -77,6 +226,16 @@ public sealed class SandSpawner : MonoBehaviour
             screenPosition = Input.mousePosition;
         }
         else
+        {
+            worldPosition = default;
+            return false;
+        }
+
+        if (_touchArea != null &&
+            !RectTransformUtility.RectangleContainsScreenPoint(
+                _touchArea,
+                screenPosition,
+                _uiCamera))
         {
             worldPosition = default;
             return false;
@@ -116,6 +275,28 @@ public sealed class SandSpawner : MonoBehaviour
             SandParticle particle = _availableParticles.Dequeue();
             Vector3 spawnPosition = emissionPosition +
                 Vector3.right * Random.Range(-_streamWidth, _streamWidth);
+            if (_hasSpawnWorldBounds)
+            {
+                float horizontalPadding = Mathf.Min(
+                    _spawnEdgePadding,
+                    _spawnWorldBounds.width * 0.5f
+                );
+                float verticalPadding = Mathf.Min(
+                    _spawnEdgePadding,
+                    _spawnWorldBounds.height * 0.5f
+                );
+                spawnPosition.x = Mathf.Clamp(
+                    spawnPosition.x,
+                    _spawnWorldBounds.xMin + horizontalPadding,
+                    _spawnWorldBounds.xMax - horizontalPadding
+                );
+                spawnPosition.y = Mathf.Clamp(
+                    spawnPosition.y,
+                    _spawnWorldBounds.yMin + verticalPadding,
+                    _spawnWorldBounds.yMax - verticalPadding
+                );
+            }
+
             Vector2 velocity = new Vector2(
                 Random.Range(_horizontalSpeedRange.x, _horizontalSpeedRange.y),
                 -Random.Range(_downwardSpeedRange.x, _downwardSpeedRange.y)

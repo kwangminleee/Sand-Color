@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// 물리 모래 입자가 바닥에 닿으면 고정 크기 격자의 모래로 변환하고,
@@ -21,6 +22,10 @@ public sealed class SandPileController : MonoBehaviour
     private Color32[] _cells;
     private int[] _solidFloor;
     private SpriteRenderer _renderer;
+    private EdgeCollider2D _boundsCollider;
+    private RectTransform _uiTarget;
+    private RawImage _uiRenderer;
+    private Rect? _configuredBounds;
     private int _width;
     private int _height;
     private float _pixelsPerUnit;
@@ -155,6 +160,20 @@ public sealed class SandPileController : MonoBehaviour
         _simulationStepsPerFrame = Mathf.Clamp(steps, 1, 8);
     }
 
+    public void ConfigureBounds(RectTransform uiTarget, Rect worldBounds)
+    {
+        if (worldBounds.width <= 0f || worldBounds.height <= 0f)
+        {
+            return;
+        }
+
+        _uiTarget = uiTarget;
+        _configuredBounds = worldBounds;
+        BuildGrid();
+        BuildBoundsCollider(worldBounds.size);
+        BuildUiRenderer();
+    }
+
     public void RegisterSolidSurface(Collider2D solid, Vector2 contactPoint)
     {
         int left = WorldToCell(new Vector3(solid.bounds.min.x, contactPoint.y)).x;
@@ -233,23 +252,37 @@ public sealed class SandPileController : MonoBehaviour
     private void BuildGrid()
     {
         Camera camera = Camera.main;
-        float worldHeight = camera != null && camera.orthographic
-            ? camera.orthographicSize * 2f
-            : 10f;
-        float worldWidth = camera != null
-            ? worldHeight * camera.aspect
-            : worldHeight * (16f / 9f);
+        float worldHeight;
+        float worldWidth;
+        Vector2 worldMin;
+
+        if (_configuredBounds.HasValue)
+        {
+            Rect bounds = _configuredBounds.Value;
+            worldWidth = bounds.width;
+            worldHeight = bounds.height;
+            worldMin = bounds.min;
+        }
+        else
+        {
+            worldHeight = camera != null && camera.orthographic
+                ? camera.orthographicSize * 2f
+                : 10f;
+            worldWidth = camera != null
+                ? worldHeight * camera.aspect
+                : worldHeight * (16f / 9f);
+            Vector3 cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
+            worldMin = new Vector2(
+                cameraPosition.x - worldWidth * 0.5f,
+                cameraPosition.y - worldHeight * 0.5f
+            );
+        }
 
         _width = Mathf.Min(MaxTextureSize, TargetGridWidth);
         _pixelsPerUnit = _width / worldWidth;
         _height = Mathf.Min(MaxTextureSize, Mathf.CeilToInt(worldHeight * _pixelsPerUnit));
 
-        Vector3 cameraPosition = camera != null ? camera.transform.position : Vector3.zero;
-        transform.position = new Vector3(
-            cameraPosition.x - _width / _pixelsPerUnit * 0.5f,
-            cameraPosition.y - _height / _pixelsPerUnit * 0.5f,
-            0f
-        );
+        transform.position = new Vector3(worldMin.x, worldMin.y, 0f);
 
         _cells = new Color32[_width * _height];
         _solidFloor = new int[_width];
@@ -257,6 +290,16 @@ public sealed class SandPileController : MonoBehaviour
         {
             _solidFloor[i] = -1;
         }
+        if (_renderer != null && _renderer.sprite != null)
+        {
+            Destroy(_renderer.sprite);
+        }
+
+        if (_texture != null)
+        {
+            Destroy(_texture);
+        }
+
         _texture = new Texture2D(_width, _height, TextureFormat.RGBA32, false)
         {
             name = "Sand Pile Texture",
@@ -276,11 +319,71 @@ public sealed class SandPileController : MonoBehaviour
             SpriteMeshType.FullRect
         );
 
-        _renderer = gameObject.AddComponent<SpriteRenderer>();
+        if (_renderer == null)
+        {
+            _renderer = gameObject.AddComponent<SpriteRenderer>();
+        }
         _renderer.sprite = sprite;
         _renderer.sortingOrder = -1;
+        _renderer.enabled = _uiTarget == null;
 
-        BuildSurfaceDetailPool();
+        if (_surfaceDetails.Count == 0)
+        {
+            BuildSurfaceDetailPool();
+        }
+
+        foreach (EdgeCollider2D surfaceCollider in _surfaceColliders)
+        {
+            surfaceCollider.enabled = false;
+        }
+    }
+
+    private void BuildBoundsCollider(Vector2 size)
+    {
+        if (_boundsCollider == null)
+        {
+            _boundsCollider = gameObject.AddComponent<EdgeCollider2D>();
+        }
+
+        _boundsCollider.edgeRadius = 0.5f / _pixelsPerUnit;
+        _boundsCollider.points = new[]
+        {
+            new Vector2(0f, size.y),
+            Vector2.zero,
+            new Vector2(size.x, 0f),
+            new Vector2(size.x, size.y)
+        };
+        _boundsCollider.enabled = true;
+    }
+
+    private void BuildUiRenderer()
+    {
+        if (_uiTarget == null)
+        {
+            return;
+        }
+
+        if (_uiRenderer == null)
+        {
+            GameObject view = new GameObject(
+                "Sand Pile View",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(RawImage)
+            );
+            view.layer = _uiTarget.gameObject.layer;
+            RectTransform rect = (RectTransform)view.transform;
+            rect.SetParent(_uiTarget, false);
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.SetAsLastSibling();
+            _uiRenderer = view.GetComponent<RawImage>();
+            _uiRenderer.raycastTarget = false;
+        }
+
+        _uiRenderer.texture = _texture;
     }
 
     private void RebuildSurfaceColliders()

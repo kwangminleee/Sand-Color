@@ -17,6 +17,14 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
     private Vector3 _baseScale;
     private bool _settled;
 
+    public Sprite ParticleSprite => _sprite != null ? _sprite.sprite : null;
+    public Color RenderColor => _sprite != null ? _sprite.color : Color.white;
+    public bool IsSpawned => gameObject.activeSelf && _body != null && _body.simulated;
+    public Vector2 VisualScale => new Vector2(
+        _baseScale.x != 0f ? transform.localScale.x / _baseScale.x : 1f,
+        _baseScale.y != 0f ? transform.localScale.y / _baseScale.y : 1f
+    );
+
     private void Awake()
     {
         _body = GetComponent<Rigidbody2D>();
