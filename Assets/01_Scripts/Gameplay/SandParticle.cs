@@ -16,6 +16,7 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
     private Action<SandParticle> _recycle;
     private Vector3 _baseScale;
     private bool _settled;
+    private int _settleAmount;
 
     public Sprite ParticleSprite => _sprite != null ? _sprite.sprite : null;
     public Color RenderColor => _sprite != null ? _sprite.color : Color.white;
@@ -37,9 +38,11 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
         Vector3 position,
         Vector2 velocity,
         Color color,
-        Action<SandParticle> recycle)
+        Action<SandParticle> recycle,
+        int settleAmount = 0)
     {
         _recycle = recycle;
+        _settleAmount = settleAmount;
         _settled = false;
         transform.SetPositionAndRotation(
             position,
@@ -128,7 +131,8 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
 
         _settled = true;
         Color color = _sprite != null ? _sprite.color : Color.yellow;
-        pileController.AddSandBurst(impactPoint, color, Random.Range(8, 13));
+        int amount = _settleAmount > 0 ? _settleAmount : Random.Range(8, 13);
+        pileController.AddSandBurst(impactPoint, color, amount);
         OnDespawned();
         _recycle?.Invoke(this);
     }

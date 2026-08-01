@@ -20,7 +20,27 @@ public sealed class SandSpawner : MonoBehaviour
         new Color(0.52f, 0.88f, 0.72f, 1f),
         new Color(0.67f, 0.55f, 0.93f, 1f),
         new Color(0.98f, 0.43f, 0.35f, 1f),
-        new Color(0.32f, 0.82f, 0.83f, 1f)
+        new Color(0.32f, 0.82f, 0.83f, 1f),
+        new Color(0.96f, 0.93f, 0.84f, 1f),
+        new Color(0.82f, 0.76f, 0.65f, 1f),
+        new Color(0.53f, 0.42f, 0.32f, 1f),
+        new Color(0.24f, 0.21f, 0.20f, 1f),
+        new Color(0.72f, 0.73f, 0.75f, 1f),
+        new Color(0.91f, 0.69f, 0.52f, 1f),
+        new Color(0.76f, 0.32f, 0.25f, 1f),
+        new Color(0.51f, 0.16f, 0.25f, 1f),
+        new Color(0.93f, 0.56f, 0.76f, 1f),
+        new Color(0.56f, 0.25f, 0.67f, 1f),
+        new Color(0.28f, 0.36f, 0.74f, 1f),
+        new Color(0.22f, 0.61f, 0.88f, 1f),
+        new Color(0.18f, 0.52f, 0.55f, 1f),
+        new Color(0.26f, 0.63f, 0.35f, 1f),
+        new Color(0.58f, 0.72f, 0.30f, 1f),
+        new Color(0.96f, 0.78f, 0.18f, 1f),
+        new Color(0.98f, 0.98f, 0.97f, 1f),
+        new Color(0.38f, 0.39f, 0.42f, 1f),
+        new Color(0.12f, 0.22f, 0.43f, 1f),
+        new Color(0.38f, 0.43f, 0.18f, 1f)
     };
     [SerializeField, Min(1)] private int _particlesPerColor = 1200;
     [SerializeField, Min(16)] private int _poolSize = 192;
@@ -56,6 +76,23 @@ public sealed class SandSpawner : MonoBehaviour
     private Color _currentColor;
     private Color _nextColor;
     private int _remainingParticles;
+
+#if UNITY_EDITOR
+    private struct DebugPaintDrop
+    {
+        public float NormalizedX;
+        public Color Color;
+        public int Row;
+    }
+
+    private readonly Queue<DebugPaintDrop> _debugPaintDrops = new Queue<DebugPaintDrop>();
+    private float _debugDropsPerSecond;
+    private float _debugPaintAccumulator;
+    private int _debugTotalDrops;
+    private int _debugSettleAmount = 1;
+    private int _debugCurrentRow = -1;
+    private int _debugActiveParticles;
+#endif
 
     public event Action<Color, Color, int> ColorsChanged;
     public Color CurrentColor => _currentColor;
@@ -97,6 +134,14 @@ public sealed class SandSpawner : MonoBehaviour
 
     private void Update()
     {
+#if UNITY_EDITOR
+        if (_debugPaintDrops.Count > 0)
+        {
+            UpdateDebugPainting();
+            return;
+        }
+#endif
+
         if (_initialized && TryGetPointerWorldPosition(out Vector3 emissionPosition))
         {
             EmitParticles(emissionPosition);
@@ -411,4 +456,146 @@ public sealed class SandSpawner : MonoBehaviour
             _availableParticles.Enqueue(particle);
         }
     }
+
+#if UNITY_EDITOR
+    public bool IsDebugPainting => _debugPaintDrops.Count > 0;
+    public float DebugPaintProgress => _debugTotalDrops <= 0
+        ? 0f
+        : 1f - _debugPaintDrops.Count / (float)_debugTotalDrops;
+
+    public void StartDebugPainting(
+        Color32[] pixels,
+        int sourceWidth,
+        int sourceHeight,
+        int targetWidth,
+        float dropsPerSecond,
+        bool useGamePalette)
+    {
+        if (!_initialized || pixels == null || pixels.Length != sourceWidth * sourceHeight)
+        {
+            return;
+        }
+
+        _debugPaintDrops.Clear();
+        int width = Mathf.Clamp(targetWidth, 16, 320);
+        int height = Mathf.Max(1, Mathf.RoundToInt(width * sourceHeight / (float)sourceWidth));
+
+        // 아래 행부터 좌우 방향을 번갈아 이동하며 실제 플레이처럼 모래를 떨어뜨립니다.
+        for (int y = 0; y < height; y++)
+        {
+            bool reverse = (y & 1) == 1;
+            for (int column = 0; column < width; column++)
+            {
+                int x = reverse ? width - 1 - column : column;
+                int sourceX = Mathf.Clamp(Mathf.FloorToInt((x + 0.5f) / width * sourceWidth), 0, sourceWidth - 1);
+                int sourceY = Mathf.Clamp(Mathf.FloorToInt((y + 0.5f) / height * sourceHeight), 0, sourceHeight - 1);
+                Color32 color = pixels[sourceY * sourceWidth + sourceX];
+                if (color.a < 16)
+                {
+                    continue;
+                }
+
+                _debugPaintDrops.Enqueue(new DebugPaintDrop
+                {
+                    NormalizedX = (x + 0.5f) / width,
+                    Color = useGamePalette ? FindClosestGameColor(color) : color,
+                    Row = y
+                });
+            }
+        }
+
+        _debugDropsPerSecond = Mathf.Max(1f, dropsPerSecond);
+        _debugSettleAmount = Mathf.Max(1, Mathf.CeilToInt(320f / width));
+        _debugPaintAccumulator = 0f;
+        _debugTotalDrops = _debugPaintDrops.Count;
+        _debugCurrentRow = -1;
+        _debugActiveParticles = 0;
+    }
+
+    public void StopDebugPainting()
+    {
+        _debugPaintDrops.Clear();
+        _debugTotalDrops = 0;
+        _debugPaintAccumulator = 0f;
+        _debugCurrentRow = -1;
+    }
+
+    private Color32 FindClosestGameColor(Color32 source)
+    {
+        if (_sandColors == null || _sandColors.Length == 0)
+        {
+            return source;
+        }
+
+        Color sourceLinear = ((Color)source).linear;
+        Color closest = _sandColors[0];
+        float closestDistance = float.PositiveInfinity;
+        foreach (Color paletteColor in _sandColors)
+        {
+            Color candidate = paletteColor.linear;
+            float red = sourceLinear.r - candidate.r;
+            float green = sourceLinear.g - candidate.g;
+            float blue = sourceLinear.b - candidate.b;
+            float distance = red * red * 0.3f + green * green * 0.59f + blue * blue * 0.11f;
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closest = paletteColor;
+            }
+        }
+
+        closest.a = source.a / 255f;
+        return closest;
+    }
+
+    private void UpdateDebugPainting()
+    {
+        if (!_hasSpawnWorldBounds)
+        {
+            StopDebugPainting();
+            return;
+        }
+
+        _debugPaintAccumulator += Time.deltaTime * _debugDropsPerSecond;
+        int requestedDrops = Mathf.Min(3, Mathf.FloorToInt(_debugPaintAccumulator));
+        int emittedDrops = 0;
+
+        if (_debugActiveParticles == 0 && _debugPaintDrops.Count > 0)
+        {
+            _debugCurrentRow = _debugPaintDrops.Peek().Row;
+        }
+
+        while (emittedDrops < requestedDrops &&
+               _debugPaintDrops.Count > 0 &&
+               _availableParticles.Count > 0 &&
+               _debugPaintDrops.Peek().Row == _debugCurrentRow)
+        {
+            DebugPaintDrop drop = _debugPaintDrops.Dequeue();
+            SandParticle particle = _availableParticles.Dequeue();
+            float x = Mathf.Lerp(_spawnWorldBounds.xMin, _spawnWorldBounds.xMax, drop.NormalizedX);
+            Vector3 position = new Vector3(
+                x,
+                _spawnWorldBounds.yMax - _spawnEdgePadding,
+                transform.position.z
+            );
+            particle.Emit(
+                position,
+                Vector2.down * _downwardSpeedRange.y,
+                drop.Color,
+                RecycleDebugParticle,
+                _debugSettleAmount
+            );
+            _debugActiveParticles++;
+            emittedDrops++;
+        }
+
+        _debugPaintAccumulator = Mathf.Max(0f, _debugPaintAccumulator - emittedDrops);
+    }
+
+    private void RecycleDebugParticle(SandParticle particle)
+    {
+        _debugActiveParticles = Mathf.Max(0, _debugActiveParticles - 1);
+        RecycleParticle(particle);
+    }
+#endif
 }
