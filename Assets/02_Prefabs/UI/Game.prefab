@@ -201,7 +201,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _touchArea: {fileID: 7841838232960972237}
   _particlePrefab: {fileID: 7236289817849624501, guid: 6ed183dc54068ed4da14fd04d2e4dd99, type: 3}
-  _sandColor: {r: 1, g: 0.72, b: 0.18, a: 1}
+  _particlesPerColor: 1200
   _poolSize: 192
   _particlesPerSecond: 180
   _streamWidth: 0.12
@@ -3296,7 +3296,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 36caed8bcff96af4bbfd2c2636a702cf, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 45c397b78f924c4a9cbe72c00de30f19, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -3918,7 +3918,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8087276c0878e4c41b0d6123403411fd, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 45c397b78f924c4a9cbe72c00de30f19, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

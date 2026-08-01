@@ -84,6 +84,20 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
         gameObject.SetActive(false);
     }
 
+    private void FixedUpdate()
+    {
+        if (_settled || !IsSpawned)
+        {
+            return;
+        }
+
+        SandPileController pileController = SandPileController.Instance;
+        if (pileController.ContainsSand(transform.position))
+        {
+            SettleSand(transform.position, pileController);
+        }
+    }
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (_settled ||
@@ -92,8 +106,6 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
             return;
         }
 
-        _settled = true;
-        Color color = _sprite != null ? _sprite.color : Color.yellow;
         SandPileController pileController = SandPileController.Instance;
         Vector2 impactPoint = collision.contactCount > 0
             ? collision.GetContact(0).point
@@ -104,7 +116,19 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
             pileController.RegisterSolidSurface(collision.collider, impactPoint);
         }
 
-        pileController.AddSandBurst(impactPoint, color, Random.Range(4, 7));
+        SettleSand(impactPoint, pileController);
+    }
+
+    private void SettleSand(Vector2 impactPoint, SandPileController pileController)
+    {
+        if (_settled)
+        {
+            return;
+        }
+
+        _settled = true;
+        Color color = _sprite != null ? _sprite.color : Color.yellow;
+        pileController.AddSandBurst(impactPoint, color, Random.Range(8, 13));
         OnDespawned();
         _recycle?.Invoke(this);
     }

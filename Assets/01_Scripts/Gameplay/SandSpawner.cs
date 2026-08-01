@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 public sealed class SandSpawner : MonoBehaviour
 {
@@ -9,7 +11,18 @@ public sealed class SandSpawner : MonoBehaviour
 
     [Header("모래 입자")]
     [SerializeField] private SandParticle _particlePrefab;
-    [SerializeField] private Color _sandColor = new Color(1f, 0.72f, 0.18f, 1f);
+    [SerializeField] private Color[] _sandColors =
+    {
+        new Color(1f, 0.48f, 0.62f, 1f),
+        new Color(1f, 0.62f, 0.25f, 1f),
+        new Color(1f, 0.86f, 0.28f, 1f),
+        new Color(0.43f, 0.82f, 0.98f, 1f),
+        new Color(0.52f, 0.88f, 0.72f, 1f),
+        new Color(0.67f, 0.55f, 0.93f, 1f),
+        new Color(0.98f, 0.43f, 0.35f, 1f),
+        new Color(0.32f, 0.82f, 0.83f, 1f)
+    };
+    [SerializeField, Min(1)] private int _particlesPerColor = 1200;
     [SerializeField, Min(16)] private int _poolSize = 192;
 
     [Header("스폰 설정")]
@@ -38,6 +51,16 @@ public sealed class SandSpawner : MonoBehaviour
     private bool _initialized;
     private Rect _spawnWorldBounds;
     private bool _hasSpawnWorldBounds;
+    private Transform _particleContainer;
+    private RectTransform _particleViewContainer;
+    private Color _currentColor;
+    private Color _nextColor;
+    private int _remainingParticles;
+
+    public event Action<Color, Color, int> ColorsChanged;
+    public Color CurrentColor => _currentColor;
+    public Color NextColor => _nextColor;
+    public int RemainingParticles => _remainingParticles;
 
     private void Awake()
     {
@@ -68,6 +91,7 @@ public sealed class SandSpawner : MonoBehaviour
         }
 
         SandParticlePool();
+        InitializeColorQueue();
         _initialized = enabled;
     }
 
@@ -159,11 +183,28 @@ public sealed class SandSpawner : MonoBehaviour
             return;
         }
 
+        GameObject particleContainer = new GameObject("Sand Particles");
+        particleContainer.transform.SetParent(transform, false);
+        _particleContainer = particleContainer.transform;
+
+        if (_touchArea != null)
+        {
+            GameObject viewContainer = new GameObject("Falling Sand Views", typeof(RectTransform));
+            viewContainer.layer = _touchArea.gameObject.layer;
+            _particleViewContainer = (RectTransform)viewContainer.transform;
+            _particleViewContainer.SetParent(_touchArea, false);
+            _particleViewContainer.anchorMin = Vector2.zero;
+            _particleViewContainer.anchorMax = Vector2.one;
+            _particleViewContainer.offsetMin = Vector2.zero;
+            _particleViewContainer.offsetMax = Vector2.zero;
+            _particleViewContainer.SetAsLastSibling();
+        }
+
         int count = Mathf.Max(16, _poolSize);
         for (int i = 0; i < count; i++)
         {
-            // TouchArea is a UI transform, so physics particles must stay in world space.
-            SandParticle particle = Instantiate(_particlePrefab);
+            // TouchArea는 UI 트랜스폼이므로 물리 입자는 월드 공간에 유지합니다.
+            SandParticle particle = Instantiate(_particlePrefab, _particleContainer);
             particle.OnDespawned();
             _availableParticles.Enqueue(particle);
             CreateParticleView(particle);
@@ -186,7 +227,7 @@ public sealed class SandSpawner : MonoBehaviour
         viewObject.layer = _touchArea.gameObject.layer;
 
         RectTransform rect = (RectTransform)viewObject.transform;
-        rect.SetParent(_touchArea, false);
+        rect.SetParent(_particleViewContainer != null ? _particleViewContainer : _touchArea, false);
         rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.sizeDelta = Vector2.one * _uiParticleSize;
@@ -261,6 +302,12 @@ public sealed class SandSpawner : MonoBehaviour
         }
 
         worldPosition = pointerRay.GetPoint(distance);
+        if (SandPileController.Instance.ContainsSand(worldPosition))
+        {
+            worldPosition = default;
+            return false;
+        }
+
         return true;
     }
 
@@ -273,8 +320,12 @@ public sealed class SandSpawner : MonoBehaviour
         for (int i = 0; i < emitCount && _availableParticles.Count > 0; i++)
         {
             SandParticle particle = _availableParticles.Dequeue();
-            Vector3 spawnPosition = emissionPosition +
-                Vector3.right * Random.Range(-_streamWidth, _streamWidth);
+            Vector2 circularOffset = Random.insideUnitCircle * _streamWidth;
+            Vector3 spawnPosition = emissionPosition + new Vector3(
+                circularOffset.x,
+                circularOffset.y,
+                0f
+            );
             if (_hasSpawnWorldBounds)
             {
                 float horizontalPadding = Mathf.Min(
@@ -302,8 +353,55 @@ public sealed class SandSpawner : MonoBehaviour
                 -Random.Range(_downwardSpeedRange.x, _downwardSpeedRange.y)
             );
 
-            particle.Emit(spawnPosition, velocity, _sandColor, RecycleParticle);
+            particle.Emit(spawnPosition, velocity, _currentColor, RecycleParticle);
+            _remainingParticles--;
+            if (_remainingParticles <= 0)
+            {
+                AdvanceColor();
+            }
         }
+    }
+
+    public void SkipColor()
+    {
+        if (!_initialized)
+        {
+            return;
+        }
+
+        AdvanceColor();
+        _emissionAccumulator = 0f;
+    }
+
+    private void InitializeColorQueue()
+    {
+        _currentColor = PickRandomColor();
+        _nextColor = PickRandomColor();
+        _remainingParticles = Mathf.Max(1, _particlesPerColor);
+        NotifyColorsChanged();
+    }
+
+    private void AdvanceColor()
+    {
+        _currentColor = _nextColor;
+        _nextColor = PickRandomColor();
+        _remainingParticles = Mathf.Max(1, _particlesPerColor);
+        NotifyColorsChanged();
+    }
+
+    private Color PickRandomColor()
+    {
+        if (_sandColors == null || _sandColors.Length == 0)
+        {
+            return new Color(1f, 0.72f, 0.18f, 1f);
+        }
+
+        return _sandColors[UnityEngine.Random.Range(0, _sandColors.Length)];
+    }
+
+    private void NotifyColorsChanged()
+    {
+        ColorsChanged?.Invoke(_currentColor, _nextColor, _remainingParticles);
     }
 
     private void RecycleParticle(SandParticle particle)

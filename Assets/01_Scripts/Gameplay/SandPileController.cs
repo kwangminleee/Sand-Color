@@ -8,9 +8,10 @@ using UnityEngine.UI;
 /// </summary>
 public sealed class SandPileController : MonoBehaviour
 {
-    private const int TargetGridWidth = 256;
+    private const int TargetGridWidth = 320;
     private const int MaxSurfaceDetails = 128;
     private const int MaxTextureSize = 1024;
+    private const float SandTextureVariation = 0.025f;
 
     private static SandPileController _instance;
 
@@ -20,6 +21,7 @@ public sealed class SandPileController : MonoBehaviour
     private Texture2D _detailTexture;
     private Sprite _detailSprite;
     private Color32[] _cells;
+    private Color32[] _displayCells;
     private int[] _solidFloor;
     private SpriteRenderer _renderer;
     private EdgeCollider2D _boundsCollider;
@@ -33,6 +35,7 @@ public sealed class SandPileController : MonoBehaviour
     private bool _preferLeft = true;
     private bool _cellsDirty;
     private bool _surfaceDirty;
+    private Transform _surfaceDetailContainer;
 
     public static SandPileController Instance
     {
@@ -69,7 +72,8 @@ public sealed class SandPileController : MonoBehaviour
 
         if (_cellsDirty)
         {
-            _texture.SetPixels32(_cells);
+            UpdateDisplayTexture();
+            _texture.SetPixels32(_displayCells);
             _texture.Apply(false, false);
             _cellsDirty = false;
         }
@@ -105,7 +109,11 @@ public sealed class SandPileController : MonoBehaviour
         }
 
         Color32 sandColor = color;
-        float brightness = Random.Range(0.92f, 1.08f);
+        // 완성된 그림에서 선택한 색이 선명하게 보이도록 일정한 미세 모래결만 적용합니다.
+        // 밝기 변화가 크면 완성된 그림의 색이 탁해지므로 변화 폭을 작게 유지합니다.
+        int grainHash = cell.x * 73856093 ^ targetY * 19349663;
+        float grain = ((grainHash & 255) / 255f - 0.5f) * 2f;
+        float brightness = 1f + grain * SandTextureVariation;
         sandColor.r = (byte)Mathf.Clamp(Mathf.RoundToInt(sandColor.r * brightness), 0, 255);
         sandColor.g = (byte)Mathf.Clamp(Mathf.RoundToInt(sandColor.g * brightness), 0, 255);
         sandColor.b = (byte)Mathf.Clamp(Mathf.RoundToInt(sandColor.b * brightness), 0, 255);
@@ -158,6 +166,12 @@ public sealed class SandPileController : MonoBehaviour
     public void SetSimulationStepsPerFrame(int steps)
     {
         _simulationStepsPerFrame = Mathf.Clamp(steps, 1, 8);
+    }
+
+    public bool ContainsSand(Vector3 worldPosition)
+    {
+        Vector2Int cell = WorldToCell(worldPosition);
+        return IsOccupied(cell.x, cell.y);
     }
 
     public void ConfigureBounds(RectTransform uiTarget, Rect worldBounds)
@@ -285,6 +299,7 @@ public sealed class SandPileController : MonoBehaviour
         transform.position = new Vector3(worldMin.x, worldMin.y, 0f);
 
         _cells = new Color32[_width * _height];
+        _displayCells = new Color32[_cells.Length];
         _solidFloor = new int[_width];
         for (int i = 0; i < _solidFloor.Length; i++)
         {
@@ -326,11 +341,6 @@ public sealed class SandPileController : MonoBehaviour
         _renderer.sprite = sprite;
         _renderer.sortingOrder = -1;
         _renderer.enabled = _uiTarget == null;
-
-        if (_surfaceDetails.Count == 0)
-        {
-            BuildSurfaceDetailPool();
-        }
 
         foreach (EdgeCollider2D surfaceCollider in _surfaceColliders)
         {
@@ -441,7 +451,8 @@ public sealed class SandPileController : MonoBehaviour
             _surfaceColliders[i].enabled = false;
         }
 
-        RefreshSurfaceDetails();
+        // 별도의 표면 장식은 완성된 그림을 지저분하게 만들 수 있어 사용하지 않습니다.
+        // 대신 모래 텍스처 자체에 은은한 모래결을 적용합니다.
     }
 
     private EdgeCollider2D GetSurfaceCollider(int index)
@@ -499,6 +510,44 @@ public sealed class SandPileController : MonoBehaviour
         _cells[y * _width + x] = color;
     }
 
+    private void UpdateDisplayTexture()
+    {
+        for (int y = 0; y < _height; y++)
+        {
+            for (int x = 0; x < _width; x++)
+            {
+                int index = y * _width + x;
+                Color32 source = _cells[index];
+                if (source.a == 0)
+                {
+                    _displayCells[index] = default;
+                    continue;
+                }
+
+                int fineHash = x * 73856093 ^ y * 19349663;
+                float fineGrain = ((fineHash & 255) / 255f - 0.5f) * 0.07f;
+                float softClump = Mathf.PerlinNoise(x * 0.085f, y * 0.085f) * 0.06f - 0.03f;
+                bool surfaceExposed = !IsOccupied(x, y + 1);
+
+                // 규칙적인 명암 띠 대신 미세 알갱이와 작은 모래 덩어리의 불규칙한 질감을 섞습니다.
+                // 가장 위쪽 표면에만 약한 빛을 더해 자연스러운 모래 더미처럼 표현합니다.
+                float depthShade = 1f + fineGrain + softClump;
+                if (surfaceExposed)
+                {
+                    depthShade += 0.035f;
+                }
+
+                _displayCells[index] = new Color32(
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(source.r * depthShade), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(source.g * depthShade), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(source.b * depthShade), 0, 255),
+                    source.a
+                );
+            }
+        }
+    }
+
+
     private void BuildSurfaceDetailPool()
     {
         const int textureSize = 16;
@@ -532,10 +581,14 @@ public sealed class SandPileController : MonoBehaviour
             textureSize
         );
 
+        GameObject container = new GameObject("Sand Surface Details");
+        container.transform.SetParent(transform, false);
+        _surfaceDetailContainer = container.transform;
+
         for (int i = 0; i < MaxSurfaceDetails; i++)
         {
             GameObject detail = new GameObject("Surface Grain");
-            detail.transform.SetParent(transform, false);
+            detail.transform.SetParent(_surfaceDetailContainer, false);
             SpriteRenderer detailRenderer = detail.AddComponent<SpriteRenderer>();
             detailRenderer.sprite = _detailSprite;
             detailRenderer.sortingOrder = 1;
