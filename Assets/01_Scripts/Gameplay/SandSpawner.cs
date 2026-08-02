@@ -13,34 +13,59 @@ public sealed class SandSpawner : MonoBehaviour
     [SerializeField] private SandParticle _particlePrefab;
     [SerializeField] private Color[] _sandColors =
     {
-        new Color(1f, 0.48f, 0.62f, 1f),
-        new Color(1f, 0.62f, 0.25f, 1f),
-        new Color(1f, 0.86f, 0.28f, 1f),
-        new Color(0.43f, 0.82f, 0.98f, 1f),
-        new Color(0.52f, 0.88f, 0.72f, 1f),
-        new Color(0.67f, 0.55f, 0.93f, 1f),
-        new Color(0.98f, 0.43f, 0.35f, 1f),
-        new Color(0.32f, 0.82f, 0.83f, 1f),
-        new Color(0.96f, 0.93f, 0.84f, 1f),
-        new Color(0.82f, 0.76f, 0.65f, 1f),
-        new Color(0.53f, 0.42f, 0.32f, 1f),
-        new Color(0.24f, 0.21f, 0.20f, 1f),
-        new Color(0.72f, 0.73f, 0.75f, 1f),
-        new Color(0.91f, 0.69f, 0.52f, 1f),
-        new Color(0.76f, 0.32f, 0.25f, 1f),
-        new Color(0.51f, 0.16f, 0.25f, 1f),
-        new Color(0.93f, 0.56f, 0.76f, 1f),
-        new Color(0.56f, 0.25f, 0.67f, 1f),
-        new Color(0.28f, 0.36f, 0.74f, 1f),
-        new Color(0.22f, 0.61f, 0.88f, 1f),
-        new Color(0.18f, 0.52f, 0.55f, 1f),
-        new Color(0.26f, 0.63f, 0.35f, 1f),
-        new Color(0.58f, 0.72f, 0.30f, 1f),
-        new Color(0.96f, 0.78f, 0.18f, 1f),
-        new Color(0.98f, 0.98f, 0.97f, 1f),
-        new Color(0.38f, 0.39f, 0.42f, 1f),
-        new Color(0.12f, 0.22f, 0.43f, 1f),
-        new Color(0.38f, 0.43f, 0.18f, 1f)
+        // 고래 레퍼런스에서 추출한 크림 / 산호 / 분홍 계열
+        new Color(0.9922f, 0.9255f, 0.7843f, 1f),
+        new Color(0.9922f, 0.9020f, 0.7255f, 1f),
+        new Color(0.9922f, 0.8784f, 0.6667f, 1f),
+        new Color(0.9922f, 0.8549f, 0.6667f, 1f),
+        new Color(0.9922f, 0.8275f, 0.6588f, 1f),
+        new Color(0.9882f, 0.8000f, 0.6784f, 1f),
+        new Color(0.9882f, 0.7686f, 0.6471f, 1f),
+        new Color(0.9882f, 0.7451f, 0.6471f, 1f),
+        new Color(0.9843f, 0.7137f, 0.6510f, 1f),
+        new Color(0.9686f, 0.6667f, 0.6667f, 1f),
+        new Color(0.9647f, 0.6471f, 0.6627f, 1f),
+        new Color(0.9216f, 0.7020f, 0.7333f, 1f),
+        new Color(0.9020f, 0.7529f, 0.7725f, 1f),
+        new Color(0.8980f, 0.6196f, 0.7176f, 1f),
+        new Color(0.8863f, 0.6510f, 0.7608f, 1f),
+        new Color(0.8471f, 0.5725f, 0.7020f, 1f),
+
+        // 보라 / 라벤더 / 하늘 계열
+        new Color(0.7882f, 0.7255f, 0.8039f, 1f),
+        new Color(0.7529f, 0.6549f, 0.8118f, 1f),
+        new Color(0.7451f, 0.5765f, 0.7882f, 1f),
+        new Color(0.7059f, 0.4863f, 0.7412f, 1f),
+        new Color(0.6902f, 0.6510f, 0.8039f, 1f),
+        new Color(0.6196f, 0.6118f, 0.7961f, 1f),
+        new Color(0.5686f, 0.7176f, 0.8392f, 1f),
+        new Color(0.5686f, 0.4196f, 0.7451f, 1f),
+        new Color(0.5216f, 0.4902f, 0.7804f, 1f),
+        new Color(0.4902f, 0.5843f, 0.7961f, 1f),
+        new Color(0.4824f, 0.4000f, 0.7412f, 1f),
+        new Color(0.4353f, 0.3725f, 0.7294f, 1f),
+
+        // 고래 몸통의 밝은 회청색부터 짙은 남색까지
+        new Color(0.9255f, 0.8549f, 0.7765f, 1f),
+        new Color(0.8902f, 0.8157f, 0.7725f, 1f),
+        new Color(0.8510f, 0.7490f, 0.7647f, 1f),
+        new Color(0.7490f, 0.7294f, 0.7843f, 1f),
+        new Color(0.6706f, 0.6314f, 0.7569f, 1f),
+        new Color(0.5255f, 0.6000f, 0.7608f, 1f),
+        new Color(0.4431f, 0.5294f, 0.7294f, 1f),
+        new Color(0.4235f, 0.4784f, 0.7020f, 1f),
+        new Color(0.3608f, 0.4588f, 0.6863f, 1f),
+        new Color(0.3176f, 0.4353f, 0.6706f, 1f),
+        new Color(0.3059f, 0.3255f, 0.6667f, 1f),
+        new Color(0.2667f, 0.4196f, 0.6431f, 1f),
+        new Color(0.2471f, 0.3882f, 0.6275f, 1f),
+        new Color(0.2314f, 0.3686f, 0.6078f, 1f),
+        new Color(0.1961f, 0.3373f, 0.5765f, 1f),
+        new Color(0.1686f, 0.3294f, 0.5569f, 1f),
+        new Color(0.1569f, 0.2980f, 0.5373f, 1f),
+        new Color(0.1216f, 0.2549f, 0.4824f, 1f),
+        new Color(0.08f, 0.14f, 0.27f, 1f),
+        new Color(0.03f, 0.05f, 0.10f, 1f)
     };
     [SerializeField, Min(1)] private int _particlesPerColor = 1200;
     [SerializeField, Min(16)] private int _poolSize = 192;
@@ -83,13 +108,18 @@ public sealed class SandSpawner : MonoBehaviour
         public float NormalizedX;
         public Color Color;
         public int Row;
+        public int MinX;
+        public int MaxX;
+        public int MinY;
+        public int MaxY;
     }
 
     private readonly Queue<DebugPaintDrop> _debugPaintDrops = new Queue<DebugPaintDrop>();
+    private readonly Dictionary<SandParticle, DebugPaintDrop> _activeDebugDrops =
+        new Dictionary<SandParticle, DebugPaintDrop>();
     private float _debugDropsPerSecond;
     private float _debugPaintAccumulator;
     private int _debugTotalDrops;
-    private int _debugSettleAmount = 1;
     private int _debugCurrentRow = -1;
     private int _debugActiveParticles;
 #endif
@@ -463,6 +493,36 @@ public sealed class SandSpawner : MonoBehaviour
         ? 0f
         : 1f - _debugPaintDrops.Count / (float)_debugTotalDrops;
 
+    public void DebugBuildTemplateMold(
+        Color32[] mask,
+        int maskWidth,
+        int maskHeight,
+        Color color)
+    {
+        SandPileController.Instance.BuildTemplateMold(mask, maskWidth, maskHeight, color);
+    }
+
+    public void DebugBuildTemplateOutline(
+        Color32[] mask,
+        int maskWidth,
+        int maskHeight,
+        Color color,
+        int thickness)
+    {
+        SandPileController.Instance.BuildTemplateOutline(
+            mask,
+            maskWidth,
+            maskHeight,
+            color,
+            thickness
+        );
+    }
+
+    public void DebugClearTemplate()
+    {
+        SandPileController.Instance.ClearTemplate();
+    }
+
     public void StartDebugPainting(
         Color32[] pixels,
         int sourceWidth,
@@ -477,8 +537,15 @@ public sealed class SandSpawner : MonoBehaviour
         }
 
         _debugPaintDrops.Clear();
+        _activeDebugDrops.Clear();
+        SandPileController pileController = SandPileController.Instance;
+        pileController.ClearSand();
+        pileController.ClearTemplate();
+
         int width = Mathf.Clamp(targetWidth, 16, 320);
         int height = Mathf.Max(1, Mathf.RoundToInt(width * sourceHeight / (float)sourceWidth));
+        int gridWidth = pileController.GridWidth;
+        int gridHeight = pileController.GridHeight;
 
         // 아래 행부터 좌우 방향을 번갈아 이동하며 실제 플레이처럼 모래를 떨어뜨립니다.
         for (int y = 0; y < height; y++)
@@ -499,13 +566,17 @@ public sealed class SandSpawner : MonoBehaviour
                 {
                     NormalizedX = (x + 0.5f) / width,
                     Color = useGamePalette ? FindClosestGameColor(color) : color,
-                    Row = y
+                    Row = y,
+                    MinX = Mathf.FloorToInt(x / (float)width * gridWidth),
+                    MaxX = Mathf.CeilToInt((x + 1f) / width * gridWidth),
+                    MinY = Mathf.FloorToInt(y / (float)height * gridHeight),
+                    MaxY = Mathf.CeilToInt((y + 1f) / height * gridHeight)
                 });
             }
         }
 
         _debugDropsPerSecond = Mathf.Max(1f, dropsPerSecond);
-        _debugSettleAmount = Mathf.Max(1, Mathf.CeilToInt(320f / width));
+
         _debugPaintAccumulator = 0f;
         _debugTotalDrops = _debugPaintDrops.Count;
         _debugCurrentRow = -1;
@@ -572,6 +643,7 @@ public sealed class SandSpawner : MonoBehaviour
         {
             DebugPaintDrop drop = _debugPaintDrops.Dequeue();
             SandParticle particle = _availableParticles.Dequeue();
+            _activeDebugDrops[particle] = drop;
             float x = Mathf.Lerp(_spawnWorldBounds.xMin, _spawnWorldBounds.xMax, drop.NormalizedX);
             Vector3 position = new Vector3(
                 x,
@@ -583,7 +655,8 @@ public sealed class SandSpawner : MonoBehaviour
                 Vector2.down * _downwardSpeedRange.y,
                 drop.Color,
                 RecycleDebugParticle,
-                _debugSettleAmount
+                0,
+                SettleDebugParticle
             );
             _debugActiveParticles++;
             emittedDrops++;
@@ -594,8 +667,25 @@ public sealed class SandSpawner : MonoBehaviour
 
     private void RecycleDebugParticle(SandParticle particle)
     {
+        _activeDebugDrops.Remove(particle);
         _debugActiveParticles = Mathf.Max(0, _debugActiveParticles - 1);
         RecycleParticle(particle);
+    }
+
+    private void SettleDebugParticle(SandParticle particle)
+    {
+        if (!_activeDebugDrops.TryGetValue(particle, out DebugPaintDrop drop))
+        {
+            return;
+        }
+
+        SandPileController.Instance.PaintDebugBlock(
+            drop.MinX,
+            drop.MaxX,
+            drop.MinY,
+            drop.MaxY,
+            drop.Color
+        );
     }
 #endif
 }

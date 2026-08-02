@@ -22,6 +22,9 @@ public sealed class SandPileController : MonoBehaviour
     private Sprite _detailSprite;
     private Color32[] _cells;
     private Color32[] _displayCells;
+    private Color32[] _moldCells;
+    private Color32[] _guideCells;
+    private bool[] _templateCells;
     private int[] _solidFloor;
     private SpriteRenderer _renderer;
     private EdgeCollider2D _boundsCollider;
@@ -188,6 +191,186 @@ public sealed class SandPileController : MonoBehaviour
         BuildUiRenderer();
     }
 
+    public int GridWidth => _width;
+    public int GridHeight => _height;
+
+    /// <summary>
+    /// Fills the play area with fixed sand while leaving a template-shaped cavity.
+    /// Falling sand can only settle inside the cavity, so the surrounding sand acts as a mold.
+    /// </summary>
+    public void BuildTemplateMold(Color32[] mask, int maskWidth, int maskHeight, Color color)
+    {
+        if (!LoadTemplateMask(mask, maskWidth, maskHeight))
+        {
+            return;
+        }
+
+        if (_moldCells == null || _moldCells.Length != _width * _height)
+        {
+            _moldCells = new Color32[_width * _height];
+        }
+
+        Color32 baseColor = color;
+        baseColor.a = 255;
+        System.Array.Clear(_guideCells, 0, _guideCells.Length);
+
+        for (int y = 0; y < _height; y++)
+        {
+            float normalizedY = (y + 0.5f) / _height;
+            for (int x = 0; x < _width; x++)
+            {
+                float normalizedX = (x + 0.5f) / _width;
+                int index = y * _width + x;
+                if (IsInsideTemplate(normalizedX, normalizedY))
+                {
+                    _moldCells[index] = default;
+                    continue;
+                }
+
+                int hash = x * 73856093 ^ y * 19349663;
+                float grain = ((hash & 255) / 255f - 0.5f) * 0.1f;
+                _moldCells[index] = new Color32(
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(baseColor.r * (1f + grain)), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(baseColor.g * (1f + grain)), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(baseColor.b * (1f + grain)), 0, 255),
+                    255
+                );
+            }
+        }
+
+        _cellsDirty = true;
+        _surfaceDirty = true;
+    }
+
+    /// <summary>
+    /// Draws a non-physical template outline that remains visible over the sand.
+    /// </summary>
+    public void BuildTemplateOutline(
+        Color32[] mask,
+        int maskWidth,
+        int maskHeight,
+        Color color,
+        int thickness = 2)
+    {
+        if (!LoadTemplateMask(mask, maskWidth, maskHeight))
+        {
+            return;
+        }
+
+        System.Array.Clear(_moldCells, 0, _moldCells.Length);
+        System.Array.Clear(_guideCells, 0, _guideCells.Length);
+
+        Color32 guideColor = color;
+        guideColor.a = (byte)Mathf.Clamp(Mathf.RoundToInt(color.a * 255f), 1, 255);
+        int radius = Mathf.Clamp(thickness, 1, 6);
+
+        for (int y = 0; y < _height; y++)
+        {
+            float normalizedY = (y + 0.5f) / _height;
+            for (int x = 0; x < _width; x++)
+            {
+                float normalizedX = (x + 0.5f) / _width;
+                if (!IsInsideTemplate(normalizedX, normalizedY))
+                {
+                    continue;
+                }
+
+                bool boundary = false;
+                for (int offsetY = -radius; offsetY <= radius && !boundary; offsetY++)
+                {
+                    for (int offsetX = -radius; offsetX <= radius; offsetX++)
+                    {
+                        float sampleX = (x + offsetX + 0.5f) / _width;
+                        float sampleY = (y + offsetY + 0.5f) / _height;
+                        if (!IsInsideTemplate(sampleX, sampleY))
+                        {
+                            boundary = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (boundary)
+                {
+                    _guideCells[y * _width + x] = guideColor;
+                }
+            }
+        }
+
+        _cellsDirty = true;
+        _surfaceDirty = true;
+    }
+
+    public void ClearTemplate()
+    {
+        System.Array.Clear(_moldCells, 0, _moldCells.Length);
+        System.Array.Clear(_guideCells, 0, _guideCells.Length);
+        _cellsDirty = true;
+        _surfaceDirty = true;
+    }
+
+    public void ClearSand()
+    {
+        System.Array.Clear(_cells, 0, _cells.Length);
+        _cellsDirty = true;
+        _surfaceDirty = true;
+    }
+
+    public void PaintDebugBlock(
+        int minX,
+        int maxX,
+        int minY,
+        int maxY,
+        Color32 color)
+    {
+        int clampedMinX = Mathf.Clamp(minX, 0, _width);
+        int clampedMaxX = Mathf.Clamp(maxX, clampedMinX, _width);
+        int clampedMinY = Mathf.Clamp(minY, 0, _height);
+        int clampedMaxY = Mathf.Clamp(maxY, clampedMinY, _height);
+        color.a = 255;
+
+        for (int y = clampedMinY; y < clampedMaxY; y++)
+        {
+            int row = y * _width;
+            for (int x = clampedMinX; x < clampedMaxX; x++)
+            {
+                _cells[row + x] = color;
+            }
+        }
+
+        _cellsDirty = true;
+        _surfaceDirty = true;
+    }
+
+    private bool LoadTemplateMask(Color32[] mask, int maskWidth, int maskHeight)
+    {
+        if (mask == null || maskWidth <= 0 || maskHeight <= 0 || mask.Length != maskWidth * maskHeight)
+        {
+            return false;
+        }
+
+        for (int y = 0; y < _height; y++)
+        {
+            int sourceY = Mathf.Clamp(Mathf.FloorToInt((y + 0.5f) / _height * maskHeight), 0, maskHeight - 1);
+            for (int x = 0; x < _width; x++)
+            {
+                int sourceX = Mathf.Clamp(Mathf.FloorToInt((x + 0.5f) / _width * maskWidth), 0, maskWidth - 1);
+                Color32 sample = mask[sourceY * maskWidth + sourceX];
+                int brightness = sample.r + sample.g + sample.b;
+                _templateCells[y * _width + x] = sample.a >= 32 && brightness >= 384;
+            }
+        }
+
+        return true;
+    }
+
+    private bool IsInsideTemplate(float normalizedX, float normalizedY)
+    {
+        int x = Mathf.FloorToInt(normalizedX * _width);
+        int y = Mathf.FloorToInt(normalizedY * _height);
+        return IsInside(x, y) && _templateCells[y * _width + x];
+    }
+
     public void RegisterSolidSurface(Collider2D solid, Vector2 contactPoint)
     {
         int left = WorldToCell(new Vector3(solid.bounds.min.x, contactPoint.y)).x;
@@ -221,6 +404,11 @@ public sealed class SandPileController : MonoBehaviour
             for (int x = startX; x != endX; x += direction)
             {
                 if (!IsOccupied(x, y))
+                {
+                    continue;
+                }
+
+                if (IsMoldCell(x, y))
                 {
                     continue;
                 }
@@ -300,6 +488,9 @@ public sealed class SandPileController : MonoBehaviour
 
         _cells = new Color32[_width * _height];
         _displayCells = new Color32[_cells.Length];
+        _moldCells = new Color32[_cells.Length];
+        _guideCells = new Color32[_cells.Length];
+        _templateCells = new bool[_cells.Length];
         _solidFloor = new int[_width];
         for (int i = 0; i < _solidFloor.Length; i++)
         {
@@ -497,7 +688,13 @@ public sealed class SandPileController : MonoBehaviour
 
     private bool IsOccupied(int x, int y)
     {
-        return IsInside(x, y) && _cells[y * _width + x].a != 0;
+        return IsInside(x, y) &&
+               (_cells[y * _width + x].a != 0 || _moldCells[y * _width + x].a != 0);
+    }
+
+    private bool IsMoldCell(int x, int y)
+    {
+        return IsInside(x, y) && _moldCells[y * _width + x].a != 0;
     }
 
     private bool IsBlocked(int x, int y)
@@ -517,7 +714,11 @@ public sealed class SandPileController : MonoBehaviour
             for (int x = 0; x < _width; x++)
             {
                 int index = y * _width + x;
-                Color32 source = _cells[index];
+                // The outline is a tracing overlay: keep it visible even after sand covers
+                // the same cell, while leaving collision and simulation unchanged.
+                Color32 source = _guideCells[index].a != 0
+                    ? _guideCells[index]
+                    : (_cells[index].a != 0 ? _cells[index] : _moldCells[index]);
                 if (source.a == 0)
                 {
                     _displayCells[index] = default;
