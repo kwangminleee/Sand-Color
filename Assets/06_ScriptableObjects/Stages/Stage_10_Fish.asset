@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2b0f460e8354e77b29ca503184f6d92, type: 3}
+  m_Name: Stage_10_Fish
+  m_EditorClassIdentifier: 
+  _stageNumber: 10
+  _displayName: "\uBB3C\uACE0\uAE30"
+  _targetSprite: {fileID: 21300000, guid: bf8cc831fa3078f478211c670e3e779b, type: 3}
+  _targetTexture: {fileID: 2800000, guid: bf8cc831fa3078f478211c670e3e779b, type: 3}
+  _templateMask: {fileID: 2800000, guid: f63912e5a4985174fb34b677af6b9a95, type: 3}
+  _requiredFillRatio: 0.98
+  _twoStarThreshold: 50
+  _threeStarThreshold: 80
+  _coinReward: 150
+  _sandPalette:
+  - {r: 0.16862746, g: 0.41960785, b: 0.6745098, a: 1}
+  - {r: 0.21960784, g: 0.5882353, b: 0.79607844, a: 1}
+  - {r: 0.24313726, g: 0.7529412, b: 0.75686276, a: 1}
+  - {r: 0.91764706, g: 0.40392157, b: 0.4117647, a: 1}
+  - {r: 0.9647059, g: 0.7294118, b: 0.26666668, a: 1}
+  - {r: 0.5294118, g: 0.3254902, b: 0.70980394, a: 1}

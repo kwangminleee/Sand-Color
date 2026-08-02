@@ -3,7 +3,7 @@ using UnityEngine;
 using Random = UnityEngine.Random;
 
 [RequireComponent(typeof(Rigidbody2D), typeof(Collider2D))]
-public sealed class SandParticle : MonoBehaviour, IPoolable
+public class SandParticle : MonoBehaviour, IPoolable
 {
     [Header("입자 외형")]
     [SerializeField] private Vector2 _scaleRange = new Vector2(0.72f, 1f);
@@ -15,6 +15,7 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
     private SpriteRenderer _sprite;
     private Action<SandParticle> _recycle;
     private Action<SandParticle> _settleOverride;
+    private SandPileController _sandPileController;
     private Vector3 _baseScale;
     private bool _settled;
     private int _settleAmount;
@@ -33,6 +34,11 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
         _collider = GetComponent<Collider2D>();
         TryGetComponent(out _sprite);
         _baseScale = transform.localScale;
+    }
+
+    public void SetSandPileController(SandPileController sandPileController)
+    {
+        _sandPileController = sandPileController;
     }
 
     public void Emit(
@@ -97,10 +103,9 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
             return;
         }
 
-        SandPileController pileController = SandPileController.Instance;
-        if (pileController.ContainsSand(transform.position))
+        if (_sandPileController != null && _sandPileController.ContainsSand(transform.position))
         {
-            SettleSand(transform.position, pileController);
+            SettleSand(transform.position, _sandPileController);
         }
     }
 
@@ -112,17 +117,21 @@ public sealed class SandParticle : MonoBehaviour, IPoolable
             return;
         }
 
-        SandPileController pileController = SandPileController.Instance;
+        if (_sandPileController == null)
+        {
+            return;
+        }
+
         Vector2 impactPoint = collision.contactCount > 0
             ? collision.GetContact(0).point
             : transform.position;
 
         if (collision.collider.GetComponent<SandPileController>() == null)
         {
-            pileController.RegisterSolidSurface(collision.collider, impactPoint);
+            _sandPileController.RegisterSolidSurface(collision.collider, impactPoint);
         }
 
-        SettleSand(impactPoint, pileController);
+        SettleSand(impactPoint, _sandPileController);
     }
 
     private void SettleSand(Vector2 impactPoint, SandPileController pileController)

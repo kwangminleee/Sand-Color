@@ -1,11 +1,14 @@
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
-public sealed class SandSpawner : MonoBehaviour
+public class SandSpawner : MonoBehaviour
 {
+    [Header("Scene Components")]
+    [SerializeField] private SandPileController _sandPileController;
+
     [Header("Touch Area")]
     [SerializeField] private RectTransform _touchArea;
 
@@ -79,7 +82,7 @@ public sealed class SandSpawner : MonoBehaviour
     [SerializeField, Range(1, 8)] private int _sandStepsPerFrame = 4;
     [SerializeField, Min(2f)] private float _uiParticleSize = 18f;
 
-    private sealed class ParticleView
+    private class ParticleView
     {
         public SandParticle Particle;
         public RectTransform Rect;
@@ -101,6 +104,7 @@ public sealed class SandSpawner : MonoBehaviour
     private Color _currentColor;
     private Color _nextColor;
     private int _remainingParticles;
+    private bool _inputEnabled = true;
 
 #if UNITY_EDITOR
     private struct DebugPaintDrop
@@ -128,6 +132,42 @@ public sealed class SandSpawner : MonoBehaviour
     public Color CurrentColor => _currentColor;
     public Color NextColor => _nextColor;
     public int RemainingParticles => _remainingParticles;
+    public bool InputEnabled => _inputEnabled;
+    public bool IsInitialized => _initialized;
+
+    public void SetInputEnabled(bool inputEnabled)
+    {
+        _inputEnabled = inputEnabled;
+        if (!inputEnabled)
+        {
+            _emissionAccumulator = 0f;
+        }
+    }
+
+    /// <summary>
+    /// 인스펙터에 저장된 기본 팔레트는 유지하면서 실행 중 팔레트만 교체합니다.
+    /// Start 전에 호출하면 첫 번째 색상부터 해당 스테이지 팔레트를 사용합니다.
+    /// </summary>
+    public void SetSandPalette(Color[] colors)
+    {
+        if (colors == null || colors.Length == 0)
+        {
+            return;
+        }
+
+        _sandColors = new Color[colors.Length];
+        for (int index = 0; index < colors.Length; index++)
+        {
+            Color color = colors[index];
+            color.a = 1f;
+            _sandColors[index] = color;
+        }
+
+        if (_initialized)
+        {
+            InitializeColorQueue();
+        }
+    }
 
     private void Awake()
     {
@@ -147,14 +187,22 @@ public sealed class SandSpawner : MonoBehaviour
 
     private void Start()
     {
-        SandPileController pileController = SandPileController.Instance;
-        pileController.SetSimulationStepsPerFrame(_sandStepsPerFrame);
+        if (_sandPileController == null)
+        {
+            Debug.LogError(
+                "SandSpawner의 Sand Pile Controller를 Inspector에서 할당하세요.",
+                this);
+            enabled = false;
+            return;
+        }
+
+        _sandPileController.SetSimulationStepsPerFrame(_sandStepsPerFrame);
 
         if (_touchArea != null && TryGetTouchAreaWorldBounds(out Rect worldBounds))
         {
             _spawnWorldBounds = worldBounds;
             _hasSpawnWorldBounds = true;
-            pileController.ConfigureBounds(_touchArea, worldBounds);
+            _sandPileController.ConfigureBounds(_touchArea, worldBounds);
         }
 
         SandParticlePool();
@@ -172,7 +220,8 @@ public sealed class SandSpawner : MonoBehaviour
         }
 #endif
 
-        if (_initialized && TryGetPointerWorldPosition(out Vector3 emissionPosition))
+        if (_initialized && _inputEnabled &&
+            TryGetPointerWorldPosition(out Vector3 emissionPosition))
         {
             EmitParticles(emissionPosition);
         }
@@ -280,6 +329,7 @@ public sealed class SandSpawner : MonoBehaviour
         {
             // TouchArea는 UI 트랜스폼이므로 물리 입자는 월드 공간에 유지합니다.
             SandParticle particle = Instantiate(_particlePrefab, _particleContainer);
+            particle.SetSandPileController(_sandPileController);
             particle.OnDespawned();
             _availableParticles.Enqueue(particle);
             CreateParticleView(particle);
@@ -377,7 +427,7 @@ public sealed class SandSpawner : MonoBehaviour
         }
 
         worldPosition = pointerRay.GetPoint(distance);
-        if (SandPileController.Instance.ContainsSand(worldPosition))
+        if (_sandPileController != null && _sandPileController.ContainsSand(worldPosition))
         {
             worldPosition = default;
             return false;
@@ -499,7 +549,7 @@ public sealed class SandSpawner : MonoBehaviour
         int maskHeight,
         Color color)
     {
-        SandPileController.Instance.BuildTemplateMold(mask, maskWidth, maskHeight, color);
+        _sandPileController?.BuildTemplateMold(mask, maskWidth, maskHeight, color);
     }
 
     public void DebugBuildTemplateOutline(
@@ -509,18 +559,17 @@ public sealed class SandSpawner : MonoBehaviour
         Color color,
         int thickness)
     {
-        SandPileController.Instance.BuildTemplateOutline(
+        _sandPileController?.BuildTemplateOutline(
             mask,
             maskWidth,
             maskHeight,
             color,
-            thickness
-        );
+            thickness);
     }
 
     public void DebugClearTemplate()
     {
-        SandPileController.Instance.ClearTemplate();
+        _sandPileController?.ClearTemplate();
     }
 
     public void StartDebugPainting(
@@ -538,7 +587,11 @@ public sealed class SandSpawner : MonoBehaviour
 
         _debugPaintDrops.Clear();
         _activeDebugDrops.Clear();
-        SandPileController pileController = SandPileController.Instance;
+        SandPileController pileController = _sandPileController;
+        if (pileController == null)
+        {
+            return;
+        }
         pileController.ClearSand();
         pileController.ClearTemplate();
 
@@ -679,13 +732,12 @@ public sealed class SandSpawner : MonoBehaviour
             return;
         }
 
-        SandPileController.Instance.PaintDebugBlock(
+        _sandPileController?.PaintDebugBlock(
             drop.MinX,
             drop.MaxX,
             drop.MinY,
             drop.MaxY,
-            drop.Color
-        );
+            drop.Color);
     }
 #endif
 }

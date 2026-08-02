@@ -1,41 +1,50 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public sealed class GameUIController : MonoBehaviour
+public class GameUIController : MonoBehaviour
 {
+    [Header("Buttons")]
     [SerializeField] private Button _pauseButton;
     [SerializeField] private Button _skipButton;
+
+    [Header("Color UI")]
     [SerializeField] private Image _currentColorImage;
     [SerializeField] private Image _nextColorImage;
 
-    private SandSpawner _sandSpawner;
+    [Header("Target UI")]
+    [SerializeField] private Image _targetImage;
+
+    [Header("Progress UI")]
+    [SerializeField] private RectTransform _progressFill;
+    [SerializeField] private TMP_Text _progressText;
+
+    private StageManager _stageManager;
+    private float _progressFullAnchorMaxX = 1f;
 
     private void Awake()
     {
-        _sandSpawner = FindObjectOfType<SandSpawner>();
-        BindColorUiIfNeeded();
+        if (_progressFill != null)
+        {
+            _progressFullAnchorMaxX =
+                _progressFill.anchorMax.x;
+        }
+
+        SetProgress(0f);
     }
 
     private void OnEnable()
     {
         if (_pauseButton != null)
         {
-            _pauseButton.onClick.AddListener(GoToMain);
+            _pauseButton.onClick.AddListener(
+                HandlePauseButton);
         }
 
         if (_skipButton != null)
         {
-            _skipButton.onClick.AddListener(SkipColor);
-        }
-
-        if (_sandSpawner != null)
-        {
-            _sandSpawner.ColorsChanged += RefreshColors;
-            RefreshColors(
-                _sandSpawner.CurrentColor,
-                _sandSpawner.NextColor,
-                _sandSpawner.RemainingParticles
-            );
+            _skipButton.onClick.AddListener(
+                HandleSkipButton);
         }
     }
 
@@ -43,99 +52,113 @@ public sealed class GameUIController : MonoBehaviour
     {
         if (_pauseButton != null)
         {
-            _pauseButton.onClick.RemoveListener(GoToMain);
+            _pauseButton.onClick.RemoveListener(
+                HandlePauseButton);
         }
 
         if (_skipButton != null)
         {
-            _skipButton.onClick.RemoveListener(SkipColor);
-        }
-
-        if (_sandSpawner != null)
-        {
-            _sandSpawner.ColorsChanged -= RefreshColors;
+            _skipButton.onClick.RemoveListener(
+                HandleSkipButton);
         }
     }
 
-    public void SkipColor()
+    public void Initialize(StageManager stageManager)
     {
-        _sandSpawner?.SkipColor();
+        _stageManager = stageManager;
     }
 
-    private void RefreshColors(Color current, Color next, int remaining)
+    public void SetColors(
+        Color currentColor,
+        Color nextColor)
     {
         if (_currentColorImage != null)
         {
-            _currentColorImage.color = current;
+            _currentColorImage.color =
+                currentColor;
         }
 
         if (_nextColorImage != null)
         {
-            _nextColorImage.color = next;
+            _nextColorImage.color =
+                nextColor;
         }
     }
 
-    private void BindColorUiIfNeeded()
+    public void SetTarget(Sprite targetSprite)
     {
-        Transform root = transform.root;
-        Transform skip = FindChild(root, "SkipBtn");
-        if (_skipButton == null && skip != null)
+        ApplySprite(
+            _targetImage,
+            targetSprite);
+    }
+
+    public void SetProgress(float normalizedProgress)
+    {
+        float progress =
+            Mathf.Clamp01(normalizedProgress);
+
+        if (_progressFill != null)
         {
-            _skipButton = skip.GetComponent<Button>();
-            if (_skipButton == null)
-            {
-                _skipButton = skip.gameObject.AddComponent<Button>();
-            }
+            Vector2 anchorMax =
+                _progressFill.anchorMax;
 
-            _skipButton.targetGraphic = skip.GetComponentInChildren<Image>(true);
+            anchorMax.x = Mathf.Lerp(
+                _progressFill.anchorMin.x,
+                _progressFullAnchorMaxX,
+                progress);
+
+            _progressFill.anchorMax =
+                anchorMax;
         }
 
-        if (_currentColorImage == null)
+        if (_progressText != null)
         {
-            Transform current = FindChild(root, "CurrentColor");
-            Transform swatch = current != null ? FindChild(current, "Sprite") : null;
-            _currentColorImage = swatch != null ? swatch.GetComponent<Image>() : null;
+            _progressText.text =
+                $"OUTLINE  {progress * 100f:0}%";
         }
+    }
 
-        if (_nextColorImage == null)
+    private void HandlePauseButton()
+    {
+        if (_stageManager == null)
         {
-            Transform next = FindChild(root, "NextColor");
-            Transform swatch = next != null ? FindChild(next, "Sprite") : null;
-            _nextColorImage = swatch != null ? swatch.GetComponent<Image>() : null;
+            Debug.LogWarning(
+                "GameUIController에 StageManager가 " +
+                "초기화되지 않았습니다.",
+                this);
+
+            return;
         }
+
+        _stageManager.GoToMain();
     }
 
-    private static Transform FindChild(Transform parent, string childName)
+    private void HandleSkipButton()
     {
-        foreach (Transform child in parent)
+        if (_stageManager == null)
         {
-            if (child.name == childName)
-            {
-                return child;
-            }
+            Debug.LogWarning(
+                "GameUIController에 StageManager가 " +
+                "초기화되지 않았습니다.",
+                this);
 
-            Transform result = FindChild(child, childName);
-            if (result != null)
-            {
-                return result;
-            }
+            return;
         }
 
-        return null;
+        _stageManager.SkipColor();
     }
 
-    public void GoToMain()
+    private static void ApplySprite(
+        Image image,
+        Sprite sprite)
     {
-        GameSceneManager.Instance.LoadMain();
-    }
+        if (image == null || sprite == null)
+        {
+            return;
+        }
 
-    public void GoToTitle()
-    {
-        GameSceneManager.Instance.LoadTitle();
-    }
-
-    public void RestartGame()
-    {
-        GameSceneManager.Instance.ReloadCurrentScene();
+        image.sprite = sprite;
+        image.preserveAspect = true;
+        image.color = Color.white;
     }
 }

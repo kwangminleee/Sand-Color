@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2b0f460e8354e77b29ca503184f6d92, type: 3}
+  m_Name: Stage_09_Flower
+  m_EditorClassIdentifier: 
+  _stageNumber: 9
+  _displayName: "\uAF43"
+  _targetSprite: {fileID: 21300000, guid: 0b2226a27f8df2745a1a1f2303a0bd80, type: 3}
+  _targetTexture: {fileID: 2800000, guid: 0b2226a27f8df2745a1a1f2303a0bd80, type: 3}
+  _templateMask: {fileID: 2800000, guid: 75ac0cb97436e5247819609968cca79c, type: 3}
+  _requiredFillRatio: 0.98
+  _twoStarThreshold: 50
+  _threeStarThreshold: 80
+  _coinReward: 150
+  _sandPalette:
+  - {r: 0.94509804, g: 0.36862746, b: 0.52156866, a: 1}
+  - {r: 0.84313726, g: 0.35686275, b: 0.6627451, a: 1}
+  - {r: 0.6117647, g: 0.3372549, b: 0.72156864, a: 1}
+  - {r: 0.9647059, g: 0.5176471, b: 0.3764706, a: 1}
+  - {r: 0.972549, g: 0.77254903, b: 0.23921569, a: 1}
+  - {r: 0.31764707, g: 0.67058825, b: 0.4117647, a: 1}

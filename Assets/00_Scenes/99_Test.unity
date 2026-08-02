@@ -166,14 +166,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f71e6a8ccf85e647b7e2af78f846e6e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _sandPileController: {fileID: 2100000002}
+  _touchArea: {fileID: 0}
   _particlePrefab: {fileID: 7236289817849624501, guid: 6ed183dc54068ed4da14fd04d2e4dd99, type: 3}
-  _sandColor: {r: 1, g: 0.72, b: 0.18, a: 1}
+  _sandColors:
+  - {r: 1, g: 0.72, b: 0.18, a: 1}
+  _particlesPerColor: 1200
   _poolSize: 192
   _particlesPerSecond: 180
   _streamWidth: 0.12
+  _spawnEdgePadding: 0.08
   _horizontalSpeedRange: {x: -0.25, y: 0.25}
   _downwardSpeedRange: {x: 0.35, y: 0.8}
   _sandStepsPerFrame: 4
+  _uiParticleSize: 18
 --- !u!1 &901369845
 GameObject:
   m_ObjectHideFlags: 0
@@ -427,8 +433,53 @@ Transform:
   m_Children:
   - {fileID: 269234205}
   - {fileID: 901369846}
+  - {fileID: 2100000001}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2100000000
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2100000001}
+  - component: {fileID: 2100000002}
+  m_Layer: 0
+  m_Name: Sand Pile Controller
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2100000001
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000000}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2000000001}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2100000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2100000000}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57f1b9ed78a24cd4aa080722016721db, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

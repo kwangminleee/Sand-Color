@@ -6,17 +6,19 @@ using UnityEngine.UI;
 /// 물리 모래 입자가 바닥에 닿으면 고정 크기 격자의 모래로 변환하고,
 /// 격자 안에서 아래 또는 대각선 방향으로 흐르며 쌓이도록 관리합니다.
 /// </summary>
-public sealed class SandPileController : MonoBehaviour
+public class SandPileController : MonoBehaviour
 {
     private const int TargetGridWidth = 320;
     private const int MaxSurfaceDetails = 128;
     private const int MaxTextureSize = 1024;
     private const float SandTextureVariation = 0.025f;
+    private const float NoMatchDeltaE = 100f;
 
-    private static SandPileController _instance;
+    private static readonly float[] LinearByByte = BuildLinearLookup();
 
     private readonly List<EdgeCollider2D> _surfaceColliders = new List<EdgeCollider2D>();
     private readonly List<SpriteRenderer> _surfaceDetails = new List<SpriteRenderer>();
+    private readonly Dictionary<int, Vector3> _sandLabCache = new Dictionary<int, Vector3>();
     private Texture2D _texture;
     private Texture2D _detailTexture;
     private Sprite _detailSprite;
@@ -25,6 +27,7 @@ public sealed class SandPileController : MonoBehaviour
     private Color32[] _moldCells;
     private Color32[] _guideCells;
     private bool[] _templateCells;
+    private Vector3[] _targetLabCells;
     private int[] _solidFloor;
     private SpriteRenderer _renderer;
     private EdgeCollider2D _boundsCollider;
@@ -40,29 +43,8 @@ public sealed class SandPileController : MonoBehaviour
     private bool _surfaceDirty;
     private Transform _surfaceDetailContainer;
 
-    public static SandPileController Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                GameObject controller = new GameObject("Sand Pile Controller");
-                _instance = controller.AddComponent<SandPileController>();
-            }
-
-            return _instance;
-        }
-    }
-
     private void Awake()
     {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        _instance = this;
         BuildGrid();
     }
 
@@ -195,8 +177,190 @@ public sealed class SandPileController : MonoBehaviour
     public int GridHeight => _height;
 
     /// <summary>
-    /// Fills the play area with fixed sand while leaving a template-shaped cavity.
-    /// Falling sand can only settle inside the cavity, so the surrounding sand acts as a mold.
+    /// 스테이지 마스크와 대응하는 목표 색상을 모래 시뮬레이션 격자에 불러옵니다.
+    /// 외곽선은 안내용 그래픽이며 판정에는 실제 모래 셀만 사용합니다.
+    /// </summary>
+    public bool ConfigureStageTarget(
+        Color32[] mask,
+        int maskWidth,
+        int maskHeight,
+        Color32[] target,
+        int targetWidth,
+        int targetHeight,
+        Color outlineColor,
+        int outlineThickness = 2)
+    {
+        if (!LoadTemplateMask(mask, maskWidth, maskHeight) ||
+            target == null ||
+            targetWidth <= 0 ||
+            targetHeight <= 0 ||
+            target.Length != targetWidth * targetHeight)
+        {
+            return false;
+        }
+
+        if (_targetLabCells == null || _targetLabCells.Length != _width * _height)
+        {
+            _targetLabCells = new Vector3[_width * _height];
+        }
+
+        int targetCellCount = 0;
+        for (int y = 0; y < _height; y++)
+        {
+            int sourceY = Mathf.Clamp(
+                Mathf.FloorToInt((y + 0.5f) / _height * targetHeight),
+                0,
+                targetHeight - 1);
+
+            for (int x = 0; x < _width; x++)
+            {
+                int index = y * _width + x;
+                if (!_templateCells[index])
+                {
+                    _targetLabCells[index] = default;
+                    continue;
+                }
+
+                int sourceX = Mathf.Clamp(
+                    Mathf.FloorToInt((x + 0.5f) / _width * targetWidth),
+                    0,
+                    targetWidth - 1);
+                _targetLabCells[index] = ToLab(
+                    target[sourceY * targetWidth + sourceX]);
+                targetCellCount++;
+            }
+        }
+
+        if (targetCellCount == 0)
+        {
+            return false;
+        }
+
+        // 현재 게임은 중력으로 떨어지는 모래를 사용하므로 외곽선만으로는
+        // 그림의 높은 부분이나 오목한 부분에 모래를 유지할 수 없습니다.
+        // 마스크 바깥을 고정된 크림색 모래 틀로 만들어 실제 빈 공간을 형성하되,
+        // 이 고정 틀은 채움률과 색상 점수에서 제외합니다.
+        BuildTemplateMold(
+            mask,
+            maskWidth,
+            maskHeight,
+            new Color(246f / 255f, 226f / 255f, 190f / 255f, 1f));
+        BuildTemplateOutlineFromLoadedMask(
+            outlineColor,
+            outlineThickness,
+            false);
+        return true;
+    }
+
+    /// <summary>
+    /// 스테이지 마스크 안쪽 픽셀만 측정합니다.
+    /// 외곽선 밖의 모래와 충돌하지 않는 안내선은 클리어 및 색상 점수에 영향을 주지 않습니다.
+    /// </summary>
+    public bool EvaluateStageTarget(out float coverage, out float colorSimilarity)
+    {
+        coverage = 0f;
+        colorSimilarity = 0f;
+        if (_cells == null ||
+            _templateCells == null ||
+            _targetLabCells == null ||
+            _cells.Length != _templateCells.Length ||
+            _cells.Length != _targetLabCells.Length)
+        {
+            return false;
+        }
+
+        int targetCells = 0;
+        int filledCells = 0;
+        float similarityTotal = 0f;
+
+        for (int index = 0; index < _templateCells.Length; index++)
+        {
+            if (!_templateCells[index])
+            {
+                continue;
+            }
+
+            targetCells++;
+            Color32 sand = _cells[index];
+            if (sand.a == 0)
+            {
+                continue;
+            }
+
+            filledCells++;
+            int colorKey = sand.r | sand.g << 8 | sand.b << 16;
+            if (!_sandLabCache.TryGetValue(colorKey, out Vector3 sandLab))
+            {
+                sandLab = ToLab(sand);
+                _sandLabCache.Add(colorKey, sandLab);
+            }
+
+            similarityTotal += CompareLab(
+                sandLab,
+                _targetLabCells[index]);
+        }
+
+        coverage = targetCells > 0 ? filledCells / (float)targetCells : 0f;
+        // 채워지지 않은 목표 셀은 의도적으로 색상 유사도 0점으로 계산합니다.
+        // 따라서 마지막 한두 셀 때문에 진행이 막히지 않도록 둔 채움 허용치도
+        // 최종 색상 점수에는 정확히 반영됩니다.
+        colorSimilarity = targetCells > 0 ? similarityTotal / targetCells : 0f;
+        return targetCells > 0;
+    }
+
+    private static Vector3 ToLab(Color32 color)
+    {
+        float red = LinearByByte[color.r];
+        float green = LinearByByte[color.g];
+        float blue = LinearByByte[color.b];
+
+        float x = (red * 0.4124564f + green * 0.3575761f + blue * 0.1804375f) /
+                  0.95047f;
+        float y = red * 0.2126729f + green * 0.7151522f + blue * 0.0721750f;
+        float z = (red * 0.0193339f + green * 0.1191920f + blue * 0.9503041f) /
+                  1.08883f;
+
+        float fx = PivotXyz(x);
+        float fy = PivotXyz(y);
+        float fz = PivotXyz(z);
+        return new Vector3(
+            116f * fy - 16f,
+            500f * (fx - fy),
+            200f * (fy - fz));
+    }
+
+    private static float CompareLab(Vector3 actualLab, Vector3 targetLab)
+    {
+        float deltaE = Vector3.Distance(actualLab, targetLab);
+        return 1f - Mathf.Clamp01(deltaE / NoMatchDeltaE);
+    }
+
+    private static float[] BuildLinearLookup()
+    {
+        float[] lookup = new float[256];
+        for (int index = 0; index < lookup.Length; index++)
+        {
+            float value = index / 255f;
+            lookup[index] = value <= 0.04045f
+                ? value / 12.92f
+                : Mathf.Pow((value + 0.055f) / 1.055f, 2.4f);
+        }
+
+        return lookup;
+    }
+
+    private static float PivotXyz(float value)
+    {
+        const float epsilon = 216f / 24389f;
+        const float kappa = 24389f / 27f;
+        return value > epsilon
+            ? Mathf.Pow(value, 1f / 3f)
+            : (kappa * value + 16f) / 116f;
+    }
+
+    /// <summary>
+    /// 플레이 영역을 고정 모래로 채우고 마스크 모양의 빈 공간만 남깁니다.
+    /// 떨어지는 모래는 빈 공간 안에만 쌓이므로 바깥 고정 모래가 틀 역할을 합니다.
     /// </summary>
     public void BuildTemplateMold(Color32[] mask, int maskWidth, int maskHeight, Color color)
     {
@@ -243,7 +407,7 @@ public sealed class SandPileController : MonoBehaviour
     }
 
     /// <summary>
-    /// Draws a non-physical template outline that remains visible over the sand.
+    /// 모래 위에서도 계속 보이지만 충돌에는 영향을 주지 않는 안내 외곽선을 그립니다.
     /// </summary>
     public void BuildTemplateOutline(
         Color32[] mask,
@@ -257,7 +421,19 @@ public sealed class SandPileController : MonoBehaviour
             return;
         }
 
-        System.Array.Clear(_moldCells, 0, _moldCells.Length);
+        BuildTemplateOutlineFromLoadedMask(color, thickness, true);
+    }
+
+    private void BuildTemplateOutlineFromLoadedMask(
+        Color color,
+        int thickness,
+        bool clearMold)
+    {
+        if (clearMold)
+        {
+            System.Array.Clear(_moldCells, 0, _moldCells.Length);
+        }
+
         System.Array.Clear(_guideCells, 0, _guideCells.Length);
 
         Color32 guideColor = color;
@@ -305,6 +481,8 @@ public sealed class SandPileController : MonoBehaviour
     {
         System.Array.Clear(_moldCells, 0, _moldCells.Length);
         System.Array.Clear(_guideCells, 0, _guideCells.Length);
+        System.Array.Clear(_templateCells, 0, _templateCells.Length);
+        System.Array.Clear(_targetLabCells, 0, _targetLabCells.Length);
         _cellsDirty = true;
         _surfaceDirty = true;
     }
@@ -491,6 +669,8 @@ public sealed class SandPileController : MonoBehaviour
         _moldCells = new Color32[_cells.Length];
         _guideCells = new Color32[_cells.Length];
         _templateCells = new bool[_cells.Length];
+        _targetLabCells = new Vector3[_cells.Length];
+        _sandLabCache.Clear();
         _solidFloor = new int[_width];
         for (int i = 0; i < _solidFloor.Length; i++)
         {
@@ -714,8 +894,8 @@ public sealed class SandPileController : MonoBehaviour
             for (int x = 0; x < _width; x++)
             {
                 int index = y * _width + x;
-                // The outline is a tracing overlay: keep it visible even after sand covers
-                // the same cell, while leaving collision and simulation unchanged.
+                // 외곽선은 따라 그리기 위한 안내 오버레이이므로 같은 셀에 모래가 쌓여도
+                // 계속 표시하며, 충돌과 모래 시뮬레이션에는 영향을 주지 않습니다.
                 Color32 source = _guideCells[index].a != 0
                     ? _guideCells[index]
                     : (_cells[index].a != 0 ? _cells[index] : _moldCells[index]);
@@ -837,11 +1017,6 @@ public sealed class SandPileController : MonoBehaviour
 
     private void OnDestroy()
     {
-        if (_instance == this)
-        {
-            _instance = null;
-        }
-
         if (_renderer != null && _renderer.sprite != null)
         {
             Destroy(_renderer.sprite);
