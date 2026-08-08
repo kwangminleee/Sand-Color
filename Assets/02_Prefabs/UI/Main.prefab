@@ -3443,6 +3443,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 542722717921133238}
+  - component: {fileID: 9000000000000000102}
   m_Layer: 5
   m_Name: StagePopup
   m_TagString: Untagged
@@ -4978,6 +4979,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3872156095468217340}
   - component: {fileID: 7243143659337812490}
+  - component: {fileID: 9000000000000000101}
   m_Layer: 5
   m_Name: MainUIController
   m_TagString: Untagged
@@ -5013,6 +5015,57 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _freeModeButton: {fileID: 4678542662081049783}
+--- !u!114 &9000000000000000101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8437150629841203765}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14a861a8fa664be2a42c79f08ddd605c, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  _mapBackground: {fileID: 4459525182906848921}
+  _stageRoot: {fileID: 5594100916162231771}
+  _stagePopup: {fileID: 9000000000000000102}
+  _backgroundHeight: 1846
+  _backgroundPageCount: 3
+  _stages:
+  - {fileID: 11400000, guid: 29ce0d5ad3aa81e40a898f24f0d890e7, type: 2}
+  - {fileID: 11400000, guid: db48776f2496e1d428c9e73bb6243f62, type: 2}
+  - {fileID: 11400000, guid: 8aa1db96069ce034786671e637f6985f, type: 2}
+  - {fileID: 11400000, guid: 0cfaa5f63d2bdde4194cf469ba6c32a9, type: 2}
+  - {fileID: 11400000, guid: 9c89710a7a8836e49b73aeef6ec5bf5d, type: 2}
+  - {fileID: 11400000, guid: ad1d814fc92575845a039aa3405a5fd5, type: 2}
+  - {fileID: 11400000, guid: d45b85f0794ed044981125e8cbe61522, type: 2}
+  - {fileID: 11400000, guid: 7cebf4bd95e082c4cbc86156ff7dae75, type: 2}
+  - {fileID: 11400000, guid: 1893f0b26bd283d44b27b578d6db2d69, type: 2}
+  - {fileID: 11400000, guid: ea18b97583d54ec4da54d1e70995ccad, type: 2}
+  _stagePlatforms:
+  - {fileID: 8902568028345887230}
+  - {fileID: 4808160972281613119}
+  - {fileID: 7333748915346472101}
+  - {fileID: 3938166425725696868}
+  - {fileID: 517556198014941189}
+  - {fileID: 1286275862120211148}
+  - {fileID: 992555735611938289}
+  - {fileID: 3496989841571562639}
+  - {fileID: 4934938046503237163}
+  - {fileID: 425758849949806964}
+--- !u!114 &9000000000000000102
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6049438970626788914}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8c43a44fba54c34a98b8efc96875d8c, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!1 &8484341969206143208
 GameObject:
   m_ObjectHideFlags: 0

@@ -7,26 +7,21 @@ public sealed class MainUIController : MonoBehaviour
 
     private void OnEnable()
     {
-        _freeModeButton.onClick.AddListener(StartGame);
+        if (_freeModeButton != null)
+        {
+            _freeModeButton.onClick.AddListener(StartGame);
+        }
     }
 
     private void OnDisable()
     {
-        _freeModeButton.onClick.RemoveListener(StartGame);
+        if (_freeModeButton != null)
+        {
+            _freeModeButton.onClick.RemoveListener(StartGame);
+        }
     }
 
-    public void StartGame()
-    {
-        GameSceneManager.Instance.LoadGame();
-    }
-
-    public void GoToTitle()
-    {
-        GameSceneManager.Instance.LoadTitle();
-    }
-
-    public void ExitGame()
-    {
-        GameSceneManager.Instance.QuitGame();
-    }
+    public void StartGame() => GameSceneManager.Instance.LoadGame();
+    public void GoToTitle() => GameSceneManager.Instance.LoadTitle();
+    public void ExitGame() => GameSceneManager.Instance.QuitGame();
 }
