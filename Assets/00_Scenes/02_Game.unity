@@ -477,11 +477,28 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3969269880708862119, guid: 498b008be7b929344b6df9e0ab73eef8, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4014949002783022374, guid: 498b008be7b929344b6df9e0ab73eef8, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4980179224125297739, guid: 498b008be7b929344b6df9e0ab73eef8, type: 3}
       propertyPath: m_Name
       value: Game
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    - target: {fileID: 8107179540019698748, guid: 498b008be7b929344b6df9e0ab73eef8, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9122438226910513111, guid: 498b008be7b929344b6df9e0ab73eef8, type: 3}
+      propertyPath: m_Name
+      value: ClearPopupUIController
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 7615205449706654559, guid: 498b008be7b929344b6df9e0ab73eef8, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []

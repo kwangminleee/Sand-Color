@@ -123,8 +123,7 @@ public class GameUIController : MonoBehaviour
         if (_stageManager == null)
         {
             Debug.LogWarning(
-                "GameUIController¿¡ StageManager°¡ " +
-                "ÃÊ±âÈ­µÇÁö ¾Ê¾Ò½À´Ï´Ù.",
+                "GameUIControllerì˜ StageManagerê°€ ì´ˆê¸°í™”ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.",
                 this);
 
             return;
@@ -138,8 +137,7 @@ public class GameUIController : MonoBehaviour
         if (_stageManager == null)
         {
             Debug.LogWarning(
-                "GameUIController¿¡ StageManager°¡ " +
-                "ÃÊ±âÈ­µÇÁö ¾Ê¾Ò½À´Ï´Ù.",
+                "GameUIControllerì˜ StageManagerê°€ ì´ˆê¸°í™”ë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤.",
                 this);
 
             return;

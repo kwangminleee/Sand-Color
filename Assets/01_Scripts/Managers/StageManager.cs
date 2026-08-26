@@ -12,7 +12,7 @@ public class StageManager : MonoBehaviour
     [SerializeField] private SandSpawner _sandSpawner;
     [SerializeField] private SandPileController _sandPileController;
     [SerializeField] private GameUIController _gameUIController;
-    [SerializeField] private ClearPopupController _clearPopupController;
+    [SerializeField] private ClearPopupUIController _clearPopupController;
 
     [Header("Stage ScriptableObjects")]
     [SerializeField] private StageData _startingStage;
