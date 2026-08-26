@@ -92,6 +92,13 @@ public class GameUIController : MonoBehaviour
             targetSprite);
     }
 
+    public void SetInfiniteMode(bool infiniteMode)
+    {
+        if (_targetImage != null) _targetImage.gameObject.SetActive(!infiniteMode);
+        if (_progressFill != null && _progressFill.parent != null)
+            _progressFill.parent.gameObject.SetActive(!infiniteMode);
+    }
+
     public void SetProgress(float normalizedProgress)
     {
         float progress =

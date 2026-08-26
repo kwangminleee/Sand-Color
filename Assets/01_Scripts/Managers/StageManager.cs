@@ -7,6 +7,7 @@ public class StageManager : MonoBehaviour
     private const string SelectedStageKey = "SandColor.SelectedStage";
     private const string HighestUnlockedStageKey =
         "SandColor.HighestUnlockedStage";
+    private const string InfiniteModeKey = "SandColor.InfiniteMode";
 
     [Header("Scene Components")]
     [SerializeField] private SandSpawner _sandSpawner;
@@ -41,12 +42,14 @@ public class StageManager : MonoBehaviour
 
     private bool _stageReady;
     private bool _stageCleared;
+    private bool _infiniteMode;
 
     public StageData CurrentStage => _currentStage;
     public float CurrentCoverage { get; private set; }
     public float CurrentColorSimilarity { get; private set; }
     public bool StageReady => _stageReady;
     public bool StageCleared => _stageCleared;
+    public bool InfiniteMode => _infiniteMode;
 
     private void Awake()
     {
@@ -105,10 +108,23 @@ public class StageManager : MonoBehaviour
 
     private void ApplyStageData()
     {
+        if (_infiniteMode)
+        {
+            if (_sandPileController != null) _sandPileController.ClearTemplate();
+            if (_gameUIController != null)
+            {
+                _gameUIController.SetInfiniteMode(true);
+                _gameUIController.SetProgress(0f);
+            }
+            return;
+        }
+
         if (_currentStage == null)
         {
             return;
         }
+
+        if (_gameUIController != null) _gameUIController.SetInfiniteMode(false);
 
         if (_sandSpawner != null)
         {
@@ -131,6 +147,22 @@ public class StageManager : MonoBehaviour
     {
         // SandSpawner의 Start 초기화가 끝난 다음 목표를 적용합니다.
         yield return null;
+
+        if (_infiniteMode)
+        {
+            if (_sandSpawner == null || _sandPileController == null || !_sandSpawner.IsInitialized)
+            {
+                Debug.LogError("무한모드의 모래 생성기 초기화에 실패했습니다.", this);
+                yield break;
+            }
+
+            _sandPileController.ClearTemplate();
+            _sandSpawner.SetInputEnabled(true);
+            _stageReady = true;
+            RefreshSpawnerColors();
+            _stageRoutine = null;
+            yield break;
+        }
 
         if (_currentStage == null)
         {
@@ -437,16 +469,20 @@ public class StageManager : MonoBehaviour
 
     private void ResolveCurrentStage()
     {
+        int rawSelectedStage = PlayerPrefs.GetInt(SelectedStageKey, 1);
+        _infiniteMode = rawSelectedStage == 0 || PlayerPrefs.GetInt(InfiniteModeKey, 0) == 1;
+        if (_infiniteMode)
+        {
+            _currentStage = null;
+            return;
+        }
+
         int fallbackStageNumber =
             _startingStage != null
                 ? _startingStage.StageNumber
                 : 1;
 
-        int selectedStageNumber = Mathf.Max(
-            1,
-            PlayerPrefs.GetInt(
-                SelectedStageKey,
-                fallbackStageNumber));
+        int selectedStageNumber = Mathf.Max(1, rawSelectedStage > 0 ? rawSelectedStage : fallbackStageNumber);
 
         _currentStage = GetStage(selectedStageNumber);
 
