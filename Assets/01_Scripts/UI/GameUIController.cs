@@ -15,10 +15,6 @@ public class GameUIController : MonoBehaviour
     [Header("Target UI")]
     [SerializeField] private Image _targetImage;
 
-    [Header("Progress UI")]
-    [SerializeField] private RectTransform _progressFill;
-    [SerializeField] private TMP_Text _progressText;
-
     private GameObject _pausePopup;
     private GameObject _settingPopup;
     private Button _pauseCloseButton;
@@ -31,19 +27,9 @@ public class GameUIController : MonoBehaviour
     private Button _settingConfirmButton;
 
     private StageManager _stageManager;
-    private float _progressFullAnchorMaxX = 1f;
-
     private void Awake()
     {
         ResolvePopupReferences();
-
-        if (_progressFill != null)
-        {
-            _progressFullAnchorMaxX =
-                _progressFill.anchorMax.x;
-        }
-
-        SetProgress(0f);
         SetPopupActive(_pausePopup, false);
         SetPopupActive(_settingPopup, false);
     }
@@ -127,35 +113,22 @@ public class GameUIController : MonoBehaviour
 
     public void SetInfiniteMode(bool infiniteMode)
     {
-        if (_targetImage != null) _targetImage.gameObject.SetActive(!infiniteMode);
-        if (_progressFill != null && _progressFill.parent != null)
-            _progressFill.parent.gameObject.SetActive(!infiniteMode);
-    }
+        Transform targetArt = FindAncestor(
+            _targetImage != null ? _targetImage.transform : null,
+            "TargetArt");
 
-    public void SetProgress(float normalizedProgress)
-    {
-        float progress =
-            Mathf.Clamp01(normalizedProgress);
-
-        if (_progressFill != null)
+        if (targetArt == null)
         {
-            Vector2 anchorMax =
-                _progressFill.anchorMax;
-
-            anchorMax.x = Mathf.Lerp(
-                _progressFill.anchorMin.x,
-                _progressFullAnchorMaxX,
-                progress);
-
-            _progressFill.anchorMax =
-                anchorMax;
+            targetArt = FindDescendant(transform.root, "TargetArt");
         }
 
-        if (_progressText != null)
+        if (targetArt != null)
         {
-            _progressText.text =
-                $"OUTLINE  {progress * 100f:0}%";
+            targetArt.gameObject.SetActive(!infiniteMode);
         }
+
+        Transform sandFillButton = FindDescendant(transform.root, "SandFillBtn");
+        if (sandFillButton != null) sandFillButton.gameObject.SetActive(false);
     }
 
     private void HandlePauseButton()
@@ -279,6 +252,18 @@ public class GameUIController : MonoBehaviour
         foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
         {
             if (child.name == objectName) return child;
+        }
+
+        return null;
+    }
+
+    private static Transform FindAncestor(Transform start, string objectName)
+    {
+        Transform current = start;
+        while (current != null)
+        {
+            if (current.name == objectName) return current;
+            current = current.parent;
         }
 
         return null;

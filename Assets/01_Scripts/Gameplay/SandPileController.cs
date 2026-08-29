@@ -148,6 +148,69 @@ public class SandPileController : MonoBehaviour
         }
     }
 
+    public int FillSandBelowTemplate(Color color)
+    {
+        if (_cells == null ||
+            _templateCells == null ||
+            _cells.Length != _templateCells.Length)
+        {
+            return 0;
+        }
+
+        int filled = 0;
+        Color32 baseColor = color;
+        baseColor.a = 255;
+
+        int lowestTemplateRow = -1;
+        for (int y = 0; y < _height; y++)
+        {
+            for (int x = 0; x < _width; x++)
+            {
+                int index = y * _width + x;
+                if (_templateCells[index])
+                {
+                    lowestTemplateRow = y;
+                    break;
+                }
+            }
+
+            if (lowestTemplateRow >= 0) break;
+        }
+
+        if (lowestTemplateRow <= 0) return 0;
+
+        // 목표 외곽선의 가장 낮은 지점 바로 아래까지 평평한 바닥 모래를 만듭니다.
+        // 입자 생성과 낙하 모션 없이 스테이지 시작 시 즉시 반영합니다.
+        for (int y = 0; y < lowestTemplateRow; y++)
+        {
+            for (int x = 0; x < _width; x++)
+            {
+                int index = y * _width + x;
+                if (_cells[index].a != 0)
+                {
+                    continue;
+                }
+
+                int hash = x * 73856093 ^ y * 19349663;
+                float grain = ((hash & 255) / 255f - 0.5f) * 0.06f;
+                _cells[index] = new Color32(
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(baseColor.r * (1f + grain)), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(baseColor.g * (1f + grain)), 0, 255),
+                    (byte)Mathf.Clamp(Mathf.RoundToInt(baseColor.b * (1f + grain)), 0, 255),
+                    255);
+                filled++;
+            }
+        }
+
+        if (filled > 0)
+        {
+            _cellsDirty = true;
+            _surfaceDirty = true;
+        }
+
+        return filled;
+    }
+
     public void SetSimulationStepsPerFrame(int steps)
     {
         _simulationStepsPerFrame = Mathf.Clamp(steps, 1, 8);
@@ -236,19 +299,12 @@ public class SandPileController : MonoBehaviour
             return false;
         }
 
-        // 현재 게임은 중력으로 떨어지는 모래를 사용하므로 외곽선만으로는
-        // 그림의 높은 부분이나 오목한 부분에 모래를 유지할 수 없습니다.
-        // 마스크 바깥을 고정된 크림색 모래 틀로 만들어 실제 빈 공간을 형성하되,
-        // 이 고정 틀은 채움률과 색상 점수에서 제외합니다.
-        BuildTemplateMold(
-            mask,
-            maskWidth,
-            maskHeight,
-            new Color(246f / 255f, 226f / 255f, 190f / 255f, 1f));
+        // 목표 모양은 안내 외곽선만 표시합니다.
+        // 마스크 바깥을 채우던 고정 모래 몰드는 사용하지 않습니다.
         BuildTemplateOutlineFromLoadedMask(
             outlineColor,
             outlineThickness,
-            false);
+            true);
         return true;
     }
 

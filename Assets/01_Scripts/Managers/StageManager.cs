@@ -37,6 +37,8 @@ public class StageManager : MonoBehaviour
 
     private StageData _currentStage;
     private Coroutine _stageRoutine;
+    private Texture2D _maskedTargetTexture;
+    private Sprite _maskedTargetSprite;
 
     private float _completionStartedAt = -1f;
 
@@ -89,6 +91,8 @@ public class StageManager : MonoBehaviour
             _sandSpawner.SetInputEnabled(true);
         }
 
+        ReleaseMaskedTarget();
+
         Time.timeScale = 1f;
     }
 
@@ -120,7 +124,6 @@ public class StageManager : MonoBehaviour
             if (_gameUIController != null)
             {
                 _gameUIController.SetInfiniteMode(true);
-                _gameUIController.SetProgress(0f);
             }
             return;
         }
@@ -139,8 +142,11 @@ public class StageManager : MonoBehaviour
 
         if (_gameUIController != null)
         {
-            _gameUIController.SetTarget(_currentStage.TargetSprite);
-            _gameUIController.SetProgress(0f);
+            Sprite targetSprite = CreateMaskedTargetSprite(_currentStage);
+            _gameUIController.SetTarget(
+                targetSprite != null
+                    ? targetSprite
+                    : _currentStage.TargetSprite);
         }
 
         if (_clearPopupUIController != null)
@@ -241,6 +247,9 @@ public class StageManager : MonoBehaviour
             yield break;
         }
 
+        _sandPileController.FillSandBelowTemplate(
+            Color.white);
+
         RefreshSpawnerColors();
 
         float nextEvaluationAt = 0f;
@@ -282,11 +291,6 @@ public class StageManager : MonoBehaviour
 
         CurrentCoverage = coverage;
         CurrentColorSimilarity = colorSimilarity;
-
-        if (_gameUIController != null)
-        {
-            _gameUIController.SetProgress(coverage);
-        }
 
         if (coverage < _currentStage.RequiredFillRatio)
         {
@@ -630,6 +634,88 @@ public class StageManager : MonoBehaviour
             {
                 Destroy(readableTexture);
             }
+        }
+    }
+
+    private Sprite CreateMaskedTargetSprite(StageData stage)
+    {
+        ReleaseMaskedTarget();
+
+        if (stage == null ||
+            !TryReadPixels(stage.TargetTexture, out Color32[] targetPixels) ||
+            !TryReadPixels(stage.TemplateMask, out Color32[] maskPixels))
+        {
+            return null;
+        }
+
+        int targetWidth = stage.TargetTexture.width;
+        int targetHeight = stage.TargetTexture.height;
+        int maskWidth = stage.TemplateMask.width;
+        int maskHeight = stage.TemplateMask.height;
+        Color32[] maskedPixels = new Color32[targetPixels.Length];
+
+        for (int y = 0; y < targetHeight; y++)
+        {
+            int maskY = Mathf.Clamp(
+                Mathf.FloorToInt((y + 0.5f) / targetHeight * maskHeight),
+                0,
+                maskHeight - 1);
+
+            for (int x = 0; x < targetWidth; x++)
+            {
+                int maskX = Mathf.Clamp(
+                    Mathf.FloorToInt((x + 0.5f) / targetWidth * maskWidth),
+                    0,
+                    maskWidth - 1);
+                Color32 mask = maskPixels[maskY * maskWidth + maskX];
+                int brightness = mask.r + mask.g + mask.b;
+                bool inside = mask.a >= 32 && brightness >= 384;
+
+                Color32 pixel = targetPixels[y * targetWidth + x];
+                pixel.a = inside ? pixel.a : (byte)0;
+                maskedPixels[y * targetWidth + x] = pixel;
+            }
+        }
+
+        _maskedTargetTexture = new Texture2D(
+            targetWidth,
+            targetHeight,
+            TextureFormat.RGBA32,
+            false)
+        {
+            name = $"{stage.name} Masked Target",
+            filterMode = FilterMode.Bilinear,
+            wrapMode = TextureWrapMode.Clamp
+        };
+        _maskedTargetTexture.SetPixels32(maskedPixels);
+        _maskedTargetTexture.Apply(false, false);
+
+        float pixelsPerUnit = stage.TargetSprite != null
+            ? stage.TargetSprite.pixelsPerUnit
+            : 100f;
+        _maskedTargetSprite = Sprite.Create(
+            _maskedTargetTexture,
+            new Rect(0f, 0f, targetWidth, targetHeight),
+            new Vector2(0.5f, 0.5f),
+            pixelsPerUnit,
+            0,
+            SpriteMeshType.FullRect);
+        _maskedTargetSprite.name = $"{stage.name} Masked Target";
+        return _maskedTargetSprite;
+    }
+
+    private void ReleaseMaskedTarget()
+    {
+        if (_maskedTargetSprite != null)
+        {
+            Destroy(_maskedTargetSprite);
+            _maskedTargetSprite = null;
+        }
+
+        if (_maskedTargetTexture != null)
+        {
+            Destroy(_maskedTargetTexture);
+            _maskedTargetTexture = null;
         }
     }
 
