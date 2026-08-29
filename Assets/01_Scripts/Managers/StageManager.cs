@@ -13,7 +13,7 @@ public class StageManager : MonoBehaviour
     [SerializeField] private SandSpawner _sandSpawner;
     [SerializeField] private SandPileController _sandPileController;
     [SerializeField] private GameUIController _gameUIController;
-    [SerializeField] private ClearPopupUIController _clearPopupController;
+    [SerializeField] private ClearPopupUIController _clearPopupUIController;
 
     [Header("Stage ScriptableObjects")]
     [SerializeField] private StageData _startingStage;
@@ -94,15 +94,21 @@ public class StageManager : MonoBehaviour
 
     private void InitializeControllers()
     {
+        if (_clearPopupUIController == null)
+        {
+            _clearPopupUIController =
+                GetComponentInChildren<ClearPopupUIController>(true);
+        }
+
         if (_gameUIController != null)
         {
             _gameUIController.Initialize(this);
         }
 
-        if (_clearPopupController != null)
+        if (_clearPopupUIController != null)
         {
-            _clearPopupController.Initialize(this);
-            _clearPopupController.Close();
+            _clearPopupUIController.Initialize(this);
+            _clearPopupUIController.Close();
         }
     }
 
@@ -137,9 +143,9 @@ public class StageManager : MonoBehaviour
             _gameUIController.SetProgress(0f);
         }
 
-        if (_clearPopupController != null)
+        if (_clearPopupUIController != null)
         {
-            _clearPopupController.SetTarget(_currentStage.TargetSprite);
+            _clearPopupUIController.SetTarget(_currentStage.TargetSprite);
         }
     }
 
@@ -329,9 +335,9 @@ public class StageManager : MonoBehaviour
             _sandSpawner.SetInputEnabled(false);
         }
 
-        if (_clearPopupController != null)
+        if (_clearPopupUIController != null)
         {
-            _clearPopupController.Open(
+            _clearPopupUIController.Open(
                 stars,
                 similarityPercent);
         }
@@ -467,45 +473,34 @@ public class StageManager : MonoBehaviour
         }
     }
 
-    private void ResolveCurrentStage()
+    public void GoToNextStage()
     {
-        int rawSelectedStage = PlayerPrefs.GetInt(SelectedStageKey, 1);
-        _infiniteMode = rawSelectedStage == 0 || PlayerPrefs.GetInt(InfiniteModeKey, 0) == 1;
-        if (_infiniteMode)
-        {
-            _currentStage = null;
-            return;
-        }
-
-        int fallbackStageNumber =
-            _startingStage != null
-                ? _startingStage.StageNumber
-                : 1;
-
-        int selectedStageNumber = Mathf.Max(1, rawSelectedStage > 0 ? rawSelectedStage : fallbackStageNumber);
-
-        _currentStage = GetStage(selectedStageNumber);
-
         if (_currentStage == null)
         {
-            _currentStage = _startingStage;
-        }
-
-        if (_currentStage != null || _stages == null)
-        {
+            GoToMain();
             return;
         }
 
-        for (int index = 0; index < _stages.Length; index++)
+        StageData nextStage = GetStage(_currentStage.StageNumber + 1);
+        if (nextStage == null)
         {
-            if (_stages[index] == null)
-            {
-                continue;
-            }
-
-            _currentStage = _stages[index];
-            break;
+            GoToMain();
+            return;
         }
+
+        SelectStage(nextStage.StageNumber);
+        RestartGame();
+    }
+
+    private void ResolveCurrentStage()
+    {
+        // 게임 씬은 저장된 이전 선택값과 관계없이 스테이지 0(무한모드)로 시작합니다.
+        _infiniteMode = true;
+        _currentStage = null;
+
+        PlayerPrefs.SetInt(SelectedStageKey, 0);
+        PlayerPrefs.SetInt(InfiniteModeKey, 1);
+        PlayerPrefs.Save();
     }
 
     private static bool TryReadPixels(

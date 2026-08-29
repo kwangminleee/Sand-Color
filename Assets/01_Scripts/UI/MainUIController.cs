@@ -187,7 +187,7 @@ public sealed class MainUIController : MonoBehaviour
         }
     }
 
-    public void StartGame() => GameSceneManager.Instance.LoadGame();
+    public void StartGame() => StartInfiniteModeGame();
     public void GoToTitle() => GameSceneManager.Instance.LoadTitle();
     public void ExitGame() => GameSceneManager.Instance.QuitGame();
 }
