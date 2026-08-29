@@ -1447,7 +1447,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4591988704989979794}
   m_Layer: 0
-  m_Name: SFX
+  m_Name: RetryContent
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2607,7 +2607,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3962282857243621902}
   m_Layer: 0
-  m_Name: Vibration
+  m_Name: SettingsContent
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2905,7 +2905,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7392125229004926690}
   m_Layer: 0
-  m_Name: BGM
+  m_Name: ResumeContent
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3420,7 +3420,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5559802463042127538}
   m_Layer: 0
-  m_Name: Notification
+  m_Name: HomeContent
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4924,7 +4924,7 @@ GameObject:
   - component: {fileID: 5795710523958953940}
   - component: {fileID: 6096393255367468270}
   m_Layer: 0
-  m_Name: NotificationLabel
+  m_Name: HomeLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5491,7 +5491,7 @@ GameObject:
   - component: {fileID: 1202876710722499560}
   - component: {fileID: 7703959446064456582}
   m_Layer: 0
-  m_Name: BGMLabel
+  m_Name: ResumeLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -7227,7 +7227,7 @@ GameObject:
   - component: {fileID: 466117721232284404}
   - component: {fileID: 2077772229136245724}
   m_Layer: 0
-  m_Name: SFXLabel
+  m_Name: RetryLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8291,7 +8291,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3850631477988573267}
   m_Layer: 0
-  m_Name: SettingsContent
+  m_Name: PauseContent
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8322,8 +8322,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: -15}
-  m_SizeDelta: {x: 700, y: 1080}
+  m_AnchoredPosition: {x: 0, y: -31}
+  m_SizeDelta: {x: 700, y: 900}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &7434187191989940514
 GameObject:
@@ -8621,7 +8621,7 @@ GameObject:
   - component: {fileID: 5545180151970397120}
   - component: {fileID: 3144138494482702431}
   m_Layer: 0
-  m_Name: VibrationLabel
+  m_Name: SettingsLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

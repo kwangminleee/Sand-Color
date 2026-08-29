@@ -422,6 +422,8 @@ public class StageManager : MonoBehaviour
             SelectedStageKey,
             selectedStage.StageNumber);
 
+        PlayerPrefs.SetInt(InfiniteModeKey, 0);
+
         PlayerPrefs.Save();
     }
 
@@ -494,13 +496,58 @@ public class StageManager : MonoBehaviour
 
     private void ResolveCurrentStage()
     {
-        // 게임 씬은 저장된 이전 선택값과 관계없이 스테이지 0(무한모드)로 시작합니다.
-        _infiniteMode = true;
-        _currentStage = null;
+        int selectedStageNumber = PlayerPrefs.GetInt(
+            SelectedStageKey,
+            _startingStage != null ? _startingStage.StageNumber : 1);
 
-        PlayerPrefs.SetInt(SelectedStageKey, 0);
-        PlayerPrefs.SetInt(InfiniteModeKey, 1);
-        PlayerPrefs.Save();
+        _infiniteMode =
+            PlayerPrefs.GetInt(InfiniteModeKey, 0) == 1 ||
+            selectedStageNumber <= 0;
+
+        if (_infiniteMode)
+        {
+            _currentStage = null;
+            return;
+        }
+
+        _currentStage = GetStage(selectedStageNumber);
+
+        if (_currentStage == null)
+        {
+            _currentStage = _startingStage;
+        }
+
+        if (_currentStage == null && _stages != null)
+        {
+            for (int index = 0; index < _stages.Length; index++)
+            {
+                if (_stages[index] == null)
+                {
+                    continue;
+                }
+
+                _currentStage = _stages[index];
+                break;
+            }
+        }
+
+        if (_currentStage == null)
+        {
+            Debug.LogError(
+                "선택한 스테이지를 찾지 못했고 대체 스테이지도 할당되지 않았습니다.",
+                this);
+
+            return;
+        }
+
+        if (_currentStage.StageNumber != selectedStageNumber)
+        {
+            PlayerPrefs.SetInt(
+                SelectedStageKey,
+                _currentStage.StageNumber);
+            PlayerPrefs.SetInt(InfiniteModeKey, 0);
+            PlayerPrefs.Save();
+        }
     }
 
     private static bool TryReadPixels(

@@ -19,11 +19,24 @@ public class GameUIController : MonoBehaviour
     [SerializeField] private RectTransform _progressFill;
     [SerializeField] private TMP_Text _progressText;
 
+    private GameObject _pausePopup;
+    private GameObject _settingPopup;
+    private Button _pauseCloseButton;
+    private Button _pauseConfirmButton;
+    private Button _resumeContentButton;
+    private Button _retryContentButton;
+    private Button _settingsContentButton;
+    private Button _homeContentButton;
+    private Button _settingCloseButton;
+    private Button _settingConfirmButton;
+
     private StageManager _stageManager;
     private float _progressFullAnchorMaxX = 1f;
 
     private void Awake()
     {
+        ResolvePopupReferences();
+
         if (_progressFill != null)
         {
             _progressFullAnchorMaxX =
@@ -31,6 +44,8 @@ public class GameUIController : MonoBehaviour
         }
 
         SetProgress(0f);
+        SetPopupActive(_pausePopup, false);
+        SetPopupActive(_settingPopup, false);
     }
 
     private void OnEnable()
@@ -46,6 +61,15 @@ public class GameUIController : MonoBehaviour
             _skipButton.onClick.AddListener(
                 HandleSkipButton);
         }
+
+        AddListener(_pauseCloseButton, HandleResumeButton);
+        AddListener(_pauseConfirmButton, HandlePauseConfirmButton);
+        AddListener(_resumeContentButton, HandleResumeButton);
+        AddListener(_retryContentButton, HandleRetryButton);
+        AddListener(_settingsContentButton, HandleOpenSettingsButton);
+        AddListener(_homeContentButton, HandleHomeButton);
+        AddListener(_settingCloseButton, HandleCloseSettingsButton);
+        AddListener(_settingConfirmButton, HandleCloseSettingsButton);
     }
 
     private void OnDisable()
@@ -61,6 +85,15 @@ public class GameUIController : MonoBehaviour
             _skipButton.onClick.RemoveListener(
                 HandleSkipButton);
         }
+
+        RemoveListener(_pauseCloseButton, HandleResumeButton);
+        RemoveListener(_pauseConfirmButton, HandlePauseConfirmButton);
+        RemoveListener(_resumeContentButton, HandleResumeButton);
+        RemoveListener(_retryContentButton, HandleRetryButton);
+        RemoveListener(_settingsContentButton, HandleOpenSettingsButton);
+        RemoveListener(_homeContentButton, HandleHomeButton);
+        RemoveListener(_settingCloseButton, HandleCloseSettingsButton);
+        RemoveListener(_settingConfirmButton, HandleCloseSettingsButton);
     }
 
     public void Initialize(StageManager stageManager)
@@ -136,7 +169,42 @@ public class GameUIController : MonoBehaviour
             return;
         }
 
-        _stageManager.GoToMain();
+        Time.timeScale = 0f;
+        SetPopupActive(_pausePopup, true);
+    }
+
+    private void HandleResumeButton()
+    {
+        SetPopupActive(_pausePopup, false);
+        Time.timeScale = 1f;
+    }
+
+    private void HandlePauseConfirmButton()
+    {
+        Time.timeScale = 1f;
+        _stageManager?.GoToMain();
+    }
+
+    private void HandleRetryButton()
+    {
+        Time.timeScale = 1f;
+        _stageManager?.RestartGame();
+    }
+
+    private void HandleOpenSettingsButton()
+    {
+        SetPopupActive(_settingPopup, true);
+    }
+
+    private void HandleHomeButton()
+    {
+        Time.timeScale = 1f;
+        _stageManager?.GoToMain();
+    }
+
+    private void HandleCloseSettingsButton()
+    {
+        SetPopupActive(_settingPopup, false);
     }
 
     private void HandleSkipButton()
@@ -165,5 +233,94 @@ public class GameUIController : MonoBehaviour
         image.sprite = sprite;
         image.preserveAspect = true;
         image.color = Color.white;
+    }
+
+    private void ResolvePopupReferences()
+    {
+        Transform root = transform.root;
+        _pausePopup = FindDescendant(root, "PausePopup")?.gameObject;
+        _settingPopup = FindDescendant(root, "SettingPopup")?.gameObject;
+
+        _pauseCloseButton = FindDescendant(
+            _pausePopup != null ? _pausePopup.transform : null,
+            "CloseBtn")?.GetComponent<Button>();
+        _pauseConfirmButton = FindDescendant(
+            _pausePopup != null ? _pausePopup.transform : null,
+            "ConfirmBtn")?.GetComponent<Button>();
+
+        Transform pauseContent = FindDescendant(
+            _pausePopup != null ? _pausePopup.transform : null,
+            "PauseContent");
+        Transform pauseMenuRoot = pauseContent != null
+            ? pauseContent
+            : (_pausePopup != null ? _pausePopup.transform : null);
+
+        _resumeContentButton = ConfigureContentButton(
+            FindDescendant(pauseMenuRoot, "ResumeContent")?.gameObject);
+        _retryContentButton = ConfigureContentButton(
+            FindDescendant(pauseMenuRoot, "RetryContent")?.gameObject);
+        _settingsContentButton = ConfigureContentButton(
+            FindDescendant(pauseMenuRoot, "SettingsContent")?.gameObject);
+        _homeContentButton = ConfigureContentButton(
+            FindDescendant(pauseMenuRoot, "HomeContent")?.gameObject);
+
+        _settingCloseButton = FindDescendant(
+            _settingPopup != null ? _settingPopup.transform : null,
+            "CloseBtn")?.GetComponent<Button>();
+        _settingConfirmButton = FindDescendant(
+            _settingPopup != null ? _settingPopup.transform : null,
+            "ConfirmBtn")?.GetComponent<Button>();
+    }
+
+    private static Transform FindDescendant(Transform root, string objectName)
+    {
+        if (root == null) return null;
+
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name == objectName) return child;
+        }
+
+        return null;
+    }
+
+    private static void SetPopupActive(GameObject popup, bool active)
+    {
+        if (popup != null) popup.SetActive(active);
+    }
+
+    private static Button ConfigureContentButton(GameObject target)
+    {
+        if (target == null) return null;
+
+        Image hitArea = target.GetComponent<Image>();
+        if (hitArea == null)
+        {
+            hitArea = target.AddComponent<Image>();
+            hitArea.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        hitArea.raycastTarget = true;
+
+        foreach (Graphic graphic in target.GetComponentsInChildren<Graphic>(true))
+        {
+            if (graphic != hitArea) graphic.raycastTarget = false;
+        }
+
+        Button button = target.GetComponent<Button>() ?? target.AddComponent<Button>();
+        button.targetGraphic = hitArea;
+        return button;
+    }
+
+    private static void AddListener(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button == null) return;
+        button.onClick = new Button.ButtonClickedEvent();
+        button.onClick.AddListener(action);
+    }
+
+    private static void RemoveListener(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button != null) button.onClick.RemoveListener(action);
     }
 }

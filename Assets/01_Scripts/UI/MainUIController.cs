@@ -37,6 +37,8 @@ public sealed class MainUIController : MonoBehaviour
         ConfigureRuntimeButton(FindObjectIn(_freeModePopup, "CloseBtn"), CloseFreeModePopup, true);
         ConfigureRuntimeButton(FindObjectIn(_freeModePopup, "CollectionBtn"), SelectCollectionFromFreeModePopup, true);
         ConfigureRuntimeButton(FindObjectIn(_freeModePopup, "StartBtn"), StartInfiniteModeGame, true);
+        ConfigureRuntimeButton(FindObjectIn(_settingPopup, "CloseBtn"), CloseSettings, true);
+        ConfigureRuntimeButton(FindObjectIn(_settingPopup, "ConfirmBtn"), CloseSettings, true);
 
         _stagePopup = _root.GetComponentInChildren<StagePopupUIController>(true);
         if (_stagePopup != null) _stagePopup.SetHost(this);
