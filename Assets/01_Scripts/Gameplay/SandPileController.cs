@@ -270,24 +270,30 @@ public class SandPileController : MonoBehaviour
         int targetCellCount = 0;
         for (int y = 0; y < _height; y++)
         {
-            int sourceY = Mathf.Clamp(
-                Mathf.FloorToInt((y + 0.5f) / _height * targetHeight),
-                0,
-                targetHeight - 1);
-
             for (int x = 0; x < _width; x++)
             {
                 int index = y * _width + x;
-                if (!_templateCells[index])
+                if (!_templateCells[index] ||
+                    !TryGetTemplateUv(
+                        x,
+                        y,
+                        maskWidth,
+                        maskHeight,
+                        out float sourceU,
+                        out float sourceV))
                 {
                     _targetLabCells[index] = default;
                     continue;
                 }
 
                 int sourceX = Mathf.Clamp(
-                    Mathf.FloorToInt((x + 0.5f) / _width * targetWidth),
+                    Mathf.FloorToInt(sourceU * targetWidth),
                     0,
                     targetWidth - 1);
+                int sourceY = Mathf.Clamp(
+                    Mathf.FloorToInt(sourceV * targetHeight),
+                    0,
+                    targetHeight - 1);
                 _targetLabCells[index] = ToLab(
                     target[sourceY * targetWidth + sourceX]);
                 targetCellCount++;
@@ -585,14 +591,81 @@ public class SandPileController : MonoBehaviour
 
         for (int y = 0; y < _height; y++)
         {
-            int sourceY = Mathf.Clamp(Mathf.FloorToInt((y + 0.5f) / _height * maskHeight), 0, maskHeight - 1);
             for (int x = 0; x < _width; x++)
             {
-                int sourceX = Mathf.Clamp(Mathf.FloorToInt((x + 0.5f) / _width * maskWidth), 0, maskWidth - 1);
+                int index = y * _width + x;
+                if (!TryGetTemplateUv(
+                        x,
+                        y,
+                        maskWidth,
+                        maskHeight,
+                        out float sourceU,
+                        out float sourceV))
+                {
+                    _templateCells[index] = false;
+                    continue;
+                }
+
+                int sourceX = Mathf.Clamp(
+                    Mathf.FloorToInt(sourceU * maskWidth),
+                    0,
+                    maskWidth - 1);
+                int sourceY = Mathf.Clamp(
+                    Mathf.FloorToInt(sourceV * maskHeight),
+                    0,
+                    maskHeight - 1);
                 Color32 sample = mask[sourceY * maskWidth + sourceX];
                 int brightness = sample.r + sample.g + sample.b;
-                _templateCells[y * _width + x] = sample.a >= 32 && brightness >= 384;
+                _templateCells[index] = sample.a >= 32 && brightness >= 384;
             }
+        }
+
+        return true;
+    }
+
+    private bool TryGetTemplateUv(
+        int gridX,
+        int gridY,
+        int sourceWidth,
+        int sourceHeight,
+        out float sourceU,
+        out float sourceV)
+    {
+        sourceU = 0f;
+        sourceV = 0f;
+        if (_width <= 0 || _height <= 0 || sourceWidth <= 0 || sourceHeight <= 0)
+        {
+            return false;
+        }
+
+        float gridAspect = _width / (float)_height;
+        float sourceAspect = sourceWidth / (float)sourceHeight;
+        float normalizedX = (gridX + 0.5f) / _width;
+        float normalizedY = (gridY + 0.5f) / _height;
+
+        if (gridAspect > sourceAspect)
+        {
+            float fittedWidth = sourceAspect / gridAspect;
+            float left = (1f - fittedWidth) * 0.5f;
+            if (normalizedX < left || normalizedX > left + fittedWidth)
+            {
+                return false;
+            }
+
+            sourceU = (normalizedX - left) / fittedWidth;
+            sourceV = normalizedY;
+        }
+        else
+        {
+            float fittedHeight = gridAspect / sourceAspect;
+            float bottom = (1f - fittedHeight) * 0.5f;
+            if (normalizedY < bottom || normalizedY > bottom + fittedHeight)
+            {
+                return false;
+            }
+
+            sourceU = normalizedX;
+            sourceV = (normalizedY - bottom) / fittedHeight;
         }
 
         return true;
