@@ -4,8 +4,6 @@ using UnityEngine.UI;
 
 public sealed class MainUIController : MonoBehaviour
 {
-    private const string SelectedStageKey = "SandColor.SelectedStage";
-    private const string InfiniteModeKey = "SandColor.InfiniteMode";
     private Transform _root;
     private StagePopupUIController _stagePopup;
     private GameObject _collectionPopup, _freeModePopup, _settingPopup, _shopPopup;
@@ -82,9 +80,7 @@ public sealed class MainUIController : MonoBehaviour
 
     public void StartInfiniteModeGame()
     {
-        PlayerPrefs.SetInt(SelectedStageKey, 0);
-        PlayerPrefs.SetInt(InfiniteModeKey, 1);
-        PlayerPrefs.Save();
+        SaveManager.SelectInfiniteMode();
         GameSceneManager.Instance.LoadGame();
     }
 

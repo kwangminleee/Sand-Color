@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2b0f460e8354e77b29ca503184f6d92, type: 3}
   m_Name: Stage_09_Flower
   m_EditorClassIdentifier: 
+  _id: 10009
   _stageNumber: 9
   _displayName: "\uAF43"
   _targetSprite: {fileID: 21300000, guid: 0b2226a27f8df2745a1a1f2303a0bd80, type: 3}

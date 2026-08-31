@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2b0f460e8354e77b29ca503184f6d92, type: 3}
   m_Name: Stage_03_Star
   m_EditorClassIdentifier: 
+  _id: 10003
   _stageNumber: 3
   _displayName: "\uBCC4"
   _targetSprite: {fileID: 21300000, guid: 2e248a86d8029244f8c2508ac737402e, type: 3}

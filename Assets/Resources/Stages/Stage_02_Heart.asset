@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2b0f460e8354e77b29ca503184f6d92, type: 3}
   m_Name: Stage_02_Heart
   m_EditorClassIdentifier: 
+  _id: 10002
   _stageNumber: 2
   _displayName: "\uD558\uD2B8"
   _targetSprite: {fileID: 21300000, guid: 3c1b81216627cd64caf3fe929db68ea3, type: 3}

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2b0f460e8354e77b29ca503184f6d92, type: 3}
   m_Name: Stage_06_Sun
   m_EditorClassIdentifier: 
+  _id: 10006
   _stageNumber: 6
   _displayName: "\uD0DC\uC591"
   _targetSprite: {fileID: 21300000, guid: efe27b52b8e7acb4b9c255c7c34f0586, type: 3}

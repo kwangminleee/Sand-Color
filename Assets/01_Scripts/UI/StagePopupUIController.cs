@@ -6,8 +6,6 @@ using UnityEngine.UI;
 
 public sealed class StagePopupUIController : MonoBehaviour
 {
-    private const string SelectedStageKey = "SandColor.SelectedStage";
-    private const string InfiniteModeKey = "SandColor.InfiniteMode";
     private StageData[] _stages = Array.Empty<StageData>();
     private GameObject _stagePopup;
     private TMP_Text _stageNumberText;
@@ -22,6 +20,7 @@ public sealed class StagePopupUIController : MonoBehaviour
     {
         _stagePopup = FindObjectInControllerScope("StagePopup");
         _stages = Resources.LoadAll<StageData>("Stages").Where(x => x != null).OrderBy(x => x.StageNumber).ToArray();
+        SaveManager.Initialize(_stages);
         _stageNumberText = FindComponent<TMP_Text>("StageNumTitleTxt");
         _referenceImage = FindImageBelow("Target", "BG");
         _previous = FindTransform("PreviousBtn");
@@ -32,8 +31,8 @@ public sealed class StagePopupUIController : MonoBehaviour
 
     public void Open()
     {
-        int selected = PlayerPrefs.GetInt(SelectedStageKey, 1);
-        int found = Array.FindIndex(_stages, x => x.StageNumber == selected);
+        int selected = SaveManager.Data.selectedStageId;
+        int found = Array.FindIndex(_stages, x => x.Id == selected);
         _index = found < 0 ? 0 : found;
         if (_stagePopup != null) _stagePopup.SetActive(true);
         SetSelectedTab(false, false);
@@ -69,9 +68,7 @@ public sealed class StagePopupUIController : MonoBehaviour
     public void StartSelectedStage()
     {
         if (_stages.Length == 0) return;
-        PlayerPrefs.SetInt(InfiniteModeKey, 0);
-        PlayerPrefs.SetInt(SelectedStageKey, _stages[_index].StageNumber);
-        PlayerPrefs.Save();
+        SaveManager.SelectStage(_stages[_index]);
         GameSceneManager.Instance.LoadGame();
     }
 
@@ -90,7 +87,10 @@ public sealed class StagePopupUIController : MonoBehaviour
                 _referenceImage.preserveAspect = true;
             }
         }
-        SetStars(_stages.Length == 0 ? 0 : Mathf.Clamp(PlayerPrefs.GetInt($"SandColor.Stage.{_stages[_index].StageNumber}.BestStars", 0), 0, 3));
+        StageProgressData progress = _stages.Length == 0
+            ? null
+            : SaveManager.GetStageProgress(_stages[_index]);
+        SetStars(progress == null ? 0 : Mathf.Clamp(progress.bestStars, 0, 3));
     }
 
     private void SetSelectedTab(bool freeMode, bool collection)

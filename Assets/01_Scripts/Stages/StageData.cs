@@ -11,6 +11,7 @@ public class StageData : ScriptableObject
     private const float MaximumStarThreshold = 100f;
 
     [Header("기본 정보")]
+    [SerializeField, Min(1)] private int _id = 10001;
     [SerializeField, Min(1)] private int _stageNumber = 1;
     [SerializeField] private string _displayName = string.Empty;
 
@@ -32,6 +33,8 @@ public class StageData : ScriptableObject
     [SerializeField] private Color[] _sandPalette = Array.Empty<Color>();
 
     public int StageNumber => Mathf.Max(1, _stageNumber);
+
+    public int Id => Mathf.Max(1, _id);
 
     public string DisplayName => string.IsNullOrWhiteSpace(_displayName)
         ? $"STAGE {StageNumber:00}"
@@ -66,6 +69,7 @@ public class StageData : ScriptableObject
 
     private void OnValidate()
     {
+        _id = Mathf.Max(1, _id);
         _stageNumber = Mathf.Max(1, _stageNumber);
         _requiredFillRatio = Mathf.Clamp(
             _requiredFillRatio,

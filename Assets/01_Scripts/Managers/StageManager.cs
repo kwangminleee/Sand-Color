@@ -4,11 +4,6 @@ using UnityEngine;
 
 public class StageManager : MonoBehaviour
 {
-    private const string SelectedStageKey = "SandColor.SelectedStage";
-    private const string HighestUnlockedStageKey =
-        "SandColor.HighestUnlockedStage";
-    private const string InfiniteModeKey = "SandColor.InfiniteMode";
-
     [Header("Scene Components")]
     [SerializeField] private SandSpawner _sandSpawner;
     [SerializeField] private SandPileController _sandPileController;
@@ -57,6 +52,7 @@ public class StageManager : MonoBehaviour
     {
         Time.timeScale = 1f;
 
+        SaveManager.Initialize(_stages);
         ResolveCurrentStage();
         InitializeControllers();
         ApplyStageData();
@@ -329,10 +325,8 @@ public class StageManager : MonoBehaviour
             _currentStage,
             similarityPercent);
 
-        SaveBest(
-            _currentStage.StageNumber,
-            stars,
-            similarityPercent);
+        SaveManager.RecordStageResult(_currentStage, stars, similarityPercent);
+        SaveManager.UnlockStage(GetStage(_currentStage.StageNumber + 1));
 
         if (_sandSpawner != null)
         {
@@ -422,31 +416,19 @@ public class StageManager : MonoBehaviour
             return;
         }
 
-        PlayerPrefs.SetInt(
-            SelectedStageKey,
-            selectedStage.StageNumber);
-
-        PlayerPrefs.SetInt(InfiniteModeKey, 0);
-
-        PlayerPrefs.Save();
+        SaveManager.SelectStage(selectedStage);
     }
 
     public int GetBestStars(int stageNumber)
     {
-        return Mathf.Clamp(
-            PlayerPrefs.GetInt(StarsKey(stageNumber), 0),
-            0,
-            3);
+        StageProgressData progress = SaveManager.GetStageProgress(GetStage(stageNumber));
+        return progress == null ? 0 : Mathf.Clamp(progress.bestStars, 0, 3);
     }
 
     public float GetBestSimilarity(int stageNumber)
     {
-        return Mathf.Clamp(
-            PlayerPrefs.GetFloat(
-                SimilarityKey(stageNumber),
-                0f),
-            0f,
-            100f);
+        StageProgressData progress = SaveManager.GetStageProgress(GetStage(stageNumber));
+        return progress == null ? 0f : Mathf.Clamp(progress.bestSimilarity, 0f, 100f);
     }
 
     public void GoToMain()
@@ -500,13 +482,8 @@ public class StageManager : MonoBehaviour
 
     private void ResolveCurrentStage()
     {
-        int selectedStageNumber = PlayerPrefs.GetInt(
-            SelectedStageKey,
-            _startingStage != null ? _startingStage.StageNumber : 1);
-
-        _infiniteMode =
-            PlayerPrefs.GetInt(InfiniteModeKey, 0) == 1 ||
-            selectedStageNumber <= 0;
+        int selectedStageId = SaveManager.Data.selectedStageId;
+        _infiniteMode = SaveManager.Data.infiniteMode;
 
         if (_infiniteMode)
         {
@@ -514,7 +491,9 @@ public class StageManager : MonoBehaviour
             return;
         }
 
-        _currentStage = GetStage(selectedStageNumber);
+        _currentStage = Array.Find(
+            _stages,
+            stage => stage != null && stage.Id == selectedStageId);
 
         if (_currentStage == null)
         {
@@ -544,13 +523,9 @@ public class StageManager : MonoBehaviour
             return;
         }
 
-        if (_currentStage.StageNumber != selectedStageNumber)
+        if (_currentStage.Id != selectedStageId)
         {
-            PlayerPrefs.SetInt(
-                SelectedStageKey,
-                _currentStage.StageNumber);
-            PlayerPrefs.SetInt(InfiniteModeKey, 0);
-            PlayerPrefs.Save();
+            SaveManager.SelectStage(_currentStage);
         }
     }
 
@@ -804,95 +779,6 @@ public class StageManager : MonoBehaviour
         return 1;
     }
 
-    private static void SaveBest(
-        int stageNumber,
-        int stars,
-        float similarityPercent)
-    {
-        int safeStageNumber =
-            Mathf.Max(1, stageNumber);
-
-        int safeStars =
-            Mathf.Clamp(stars, 1, 3);
-
-        float safeSimilarity =
-            Mathf.Clamp(
-                similarityPercent,
-                0f,
-                100f);
-
-        bool improved = false;
-
-        string starsKey =
-            StarsKey(safeStageNumber);
-
-        int savedStars = Mathf.Clamp(
-            PlayerPrefs.GetInt(starsKey, 0),
-            0,
-            3);
-
-        if (safeStars > savedStars)
-        {
-            PlayerPrefs.SetInt(
-                starsKey,
-                safeStars);
-
-            improved = true;
-        }
-
-        string similarityKey =
-            SimilarityKey(safeStageNumber);
-
-        float savedSimilarity = Mathf.Clamp(
-            PlayerPrefs.GetFloat(
-                similarityKey,
-                0f),
-            0f,
-            100f);
-
-        if (safeSimilarity > savedSimilarity)
-        {
-            PlayerPrefs.SetFloat(
-                similarityKey,
-                safeSimilarity);
-
-            improved = true;
-        }
-
-        int highestUnlockedStage =
-            PlayerPrefs.GetInt(
-                HighestUnlockedStageKey,
-                1);
-
-        if (safeStageNumber + 1 >
-            highestUnlockedStage)
-        {
-            PlayerPrefs.SetInt(
-                HighestUnlockedStageKey,
-                safeStageNumber + 1);
-
-            improved = true;
-        }
-
-        if (improved)
-        {
-            PlayerPrefs.Save();
-        }
-    }
-
-    private static string StarsKey(int stageNumber)
-    {
-        return
-            $"SandColor.Stage.{Mathf.Max(1, stageNumber)}" +
-            ".BestStars";
-    }
-
-    private static string SimilarityKey(int stageNumber)
-    {
-        return
-            $"SandColor.Stage.{Mathf.Max(1, stageNumber)}" +
-            ".BestSimilarity";
-    }
 
     private void OnValidate()
     {
